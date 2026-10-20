@@ -5,10 +5,20 @@ services:
     container_name: open-compute
     restart: unless-stopped
     command: ["--system", "run"]
+    read_only: true
+    tmpfs:
+      - /tmp
     volumes:
       - /vol1/docker/open-compute/data:/var/lib/open-compute
     networks:
       - backend
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8787/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 30s
+    stop_grace_period: 60s
 
 networks:
   backend:

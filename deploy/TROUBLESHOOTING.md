@@ -15,9 +15,11 @@
 
 处理：不要删数据绕过去。保留旧目录，新建空目录重新初始化，重新部署 Worker。
 
+**重要**：新实例的 ID 会变。统一登录网关 `state.json` 里的 `instance` 和 `credential` 必须同步更新，否则会出现「登录成功但面板连不上」。步骤见 `LOCAL-DEPLOY.md` 的「实例 ID 与统一登录网关」一节。
+
 ## 2. Alpine 基础镜像里 ocd 报 not found
 
-现象：cfkit 用 `node:22-alpine`，`ocd --version` 报 `not found`，但文件明明存在。
+现象：cfkit 用 `node:22-alpine`，`ocd --version` 报 `not found`뼌但文件明明存在。
 
 原因：ocd 是 glibc 动态链接的二进制，Alpine 是 musl，找不到 `/lib64/ld-linux-x86-64.so.2`。
 
@@ -40,7 +42,7 @@
 
 ## 5. ocd target add 报 must use HTTPS
 
-现象：`TARGET_INVALID: target API URL must use HTTPS except for loopbach`。
+现象：`TARGET_INVALID: target API URL must use HTTPS except for loopback`。
 
 原因：ocd 只允许 127.0.0.1 走 HTTP，其他地址必须 HTTPS。
 
@@ -69,3 +71,33 @@
 原因：目标目录非空但缺少 `.compose-initialized` 标记。
 
 处理：换一个空目录重新初始化；旧目录原样保留用于回滚。
+
+补充：如果报的是 `INSTANCE_REGISTRY_INVALID`，先停掉占用该目录的旧容器（`docker stop open-compute`），再跑 init。
+
+## 9. 面板打不开：/operator/ 返回 503
+
+现象：
+
+    GET /operator/  ->  503
+    日志            dashboard bootstrap failed  code=RUNTIME_UNAVAILABLE
+
+数据库里是が版本建好了，部署没落库き：`worker_versions` 有 ready 版本，但 `worker_deployments` 为 0、`system_owned_versions.assets_sha256` 全 0。
+
+原因：0.3.0 首次启动时面板 bootstrap 与 workerd 的 generation 握手竞争，失败后指纹永远写不上，每次启动重复。
+
+处理：
+
+1. 换用带重试的镜像 `ghcr.io/observe-life/open-compute:0.3.0-retry1`（改 compose 的 image tag 后重启）
+2. 换镜像仍失败时，看日志里的 `message = ...`，把内容追加到上游 issue
+3. 不要手工改数据库（会从 `RUNTIME_UNAVAILABLE` 变成 `INTERNAL`，仍 503，还可能把实例弄成 `MIGRATION_FAILED`）
+
+上游 issue：https://github.com/elliothux/open-compute/issues/168
+详细步骤：`LOCAL-DEPLOY.md` 的「控制面板打不开」一节。
+
+## 10. 面板正常后登录网关仍连不上
+
+现象：8788 登录成功，但面板空白/报「实例连接失败」。
+
+原因：重新初始化后实例 ID 变了，网关 `state.json` 里还是旧 ID。
+
+处理：按 `LOCAL-DEPLOY.md` 的「实例 ID 与统一登录网关」一节更新 `instance` 并重新封存 `credential`，然后重启网关容器。
