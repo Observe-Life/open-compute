@@ -285,20 +285,33 @@ pub(super) async fn run(platform: BoundPlatform) -> Result<(), PlatformError> {
                 tracing::error!("dashboard bootstrap timed out waiting for workerd readiness");
                 return;
             }
-            match bootstrap_dashboard(
-                bootstrap_storage,
-                bootstrap_store,
-                bootstrap_transport,
-                bootstrap_account,
-                bootstrap_limits,
-            )
-            .await
-            {
-                Ok(dispatch) => {
-                    *bootstrap_slot.write().await = Some(dispatch);
-                }
-                Err(error) => {
-                    tracing::error!(code = error.code().as_str(), "dashboard bootstrap failed");
+            // Bounded retry: the first admission can race the workerd generation
+            // handshake immediately after startup.
+            for attempt in 1u8..=3 {
+                match bootstrap_dashboard(
+                    bootstrap_storage.clone(),
+                    bootstrap_store.clone(),
+                    bootstrap_transport.clone(),
+                    bootstrap_account,
+                    bootstrap_limits,
+                )
+                .await
+                {
+                    Ok(dispatch) => {
+                        *bootstrap_slot.write().await = Some(dispatch);
+                        return;
+                    }
+                    Err(error) => {
+                        tracing::error!(
+                            code = error.code().as_str(),
+                            message = error.message(),
+                            attempt,
+                            "dashboard bootstrap failed"
+                        );
+                        if attempt < 3 {
+                            tokio::time::sleep(Duration::from_secs(2)).await;
+                        }
+                    }
                 }
             }
         });
