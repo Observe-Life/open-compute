@@ -36,12 +36,15 @@ jobs:
         run: bun run build
 
       - name: Build ocd
-        run: bun run build:rust
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/.temp/release-target
+        run: mbx build --locked --release -p open-compute-service --bin ocd
 
       - name: Stage ocd for the container image
         run: |
           set -euo pipefail
-          BIN="$(find target -type f -name ocd -path "*/release/*" | head -1)"
+          find .temp/release-target -type f -name ocd -path "*/release/*" | head -10
+          BIN="$(find .temp/release-target -type f -name ocd -path "*/release/*" | head -1)"
           test -n "$BIN"
           ls -lh "$BIN"
           cp "$BIN" examples/container/ocd.linux-amd64
