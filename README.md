@@ -1,3 +1,13 @@
+> **本 fork 是本地部署版本**
+>
+> - 部署步骤 → [LOCAL-DEPLOY.md](LOCAL-DEPLOY.md)
+> - 踩坑对照 → [deploy/TROUBLESHOOTING.md](deploy/TROUBLESHOOTING.md)
+> - 构建容器 → [deploy/cfkit/Dockerfile](deploy/cfkit/Dockerfile)
+>
+> `main` 分支与官方 v0.3.0 一致，升级只动 `main`；部署套件在 `local-deploy` 分支。
+
+---
+
 <p align="center">
   <a href="https://open-compute.dev">
     <img src="share/brand/open-compute.webp" alt="open-compute" width="480" />
