@@ -253,19 +253,23 @@ pub fn inspect_workflow_reconcile_failures(
         let mut statement = conn
             .prepare("SELECT id,name,state,availability,availability_code FROM workflow_definitions")
             .map_err(sql_error)?;
-        statement
-            .query_map([], |row| {
-                Ok(serde_json::json!({
-                    "id": row.get::<_, String>(0).map_err(sql_error)?,
-                    "name": row.get::<_, String>(1).map_err(sql_error)?,
-                    "state": row.get::<_, String>(2).map_err(sql_error)?,
-                    "availability": row.get::<_, String>(3).map_err(sql_error)?,
-                    "code": row.get::<_, Option<String>>(4).map_err(sql_error)?,
-                }))
-            })
-            .map_err(sql_error)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(sql_error)
+        let mut rows = statement.query([]).map_err(sql_error)?;
+        let mut collected = Vec::new();
+        while let Some(row) = rows.next().map_err(sql_error)? {
+            let id: String = row.get(0).map_err(sql_error)?;
+            let name: String = row.get(1).map_err(sql_error)?;
+            let state: String = row.get(2).map_err(sql_error)?;
+            let availability: String = row.get(3).map_err(sql_error)?;
+            let code: Option<String> = row.get(4).map_err(sql_error)?;
+            collected.push(serde_json::json!({
+                "id": id,
+                "name": name,
+                "state": state,
+                "availability": availability,
+                "code": code,
+            }));
+        }
+        Ok(collected)
     })?;
     diagnosis.definitions = definitions;
     for reservation in repository.live_reservations(None, 1000)? {
@@ -275,10 +279,7 @@ pub fn inspect_workflow_reconcile_failures(
         let mut fact = ReconcileInstanceFacts {
             instance_id: identity.instance_id.to_string(),
             ref_state: format!("{:?}", reservation.state),
-            external_instance_id: identity
-                .external_instance_id
-                .clone()
-                .unwrap_or_default(),
+            external_instance_id: identity.external_instance_id.clone(),
             definition_id: identity.target.definition_id.to_string(),
             scheduler_state: instance.as_ref().map(|i| format!("{:?}", i.state)),
             pending_operation: pending.as_ref().map(|o| format!("{:?}", o.kind())),
