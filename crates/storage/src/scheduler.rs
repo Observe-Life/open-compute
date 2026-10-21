@@ -38,7 +38,7 @@ pub use workflow::{
     WorkflowDelayResolution, WorkflowFailure, WorkflowInspection, WorkflowInstanceAction,
     WorkflowInstanceInspection, WorkflowInstanceRecord, WorkflowState, WorkflowStepAttempt,
     WorkflowStepGrant, WorkflowStepInspection, WorkflowStepOutcome, WorkflowStepResult,
-    inspect_workflow_databases,
+    inspect_workflow_databases, inspect_workflow_reconcile_failures,
 };
 
 pub use cron::{

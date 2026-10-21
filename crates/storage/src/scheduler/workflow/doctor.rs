@@ -197,3 +197,140 @@ fn operation_matches(
         }
     }
 }
+
+
+/// One dry-run fact per reconcile branch, no writes.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReconcileInstanceFacts {
+    pub instance_id: String,
+    pub ref_state: String,
+    pub external_instance_id: String,
+    pub definition_id: String,
+    pub scheduler_state: Option<String>,
+    pub pending_operation: Option<String>,
+    pub identity_mismatch: bool,
+    pub scheduler_digest_mismatch: bool,
+    pub history_error: Option<String>,
+    pub referrers_intact: Option<bool>,
+    pub branch_outcome: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReconcileDiagnosis {
+    pub definitions: Vec<serde_json::Value>,
+    pub checked_at_ms: i64,
+    pub reports: Vec<ReconcileInstanceFacts>,
+    pub scheduler_without_control_row: Vec<String>,
+}
+
+/// Walk the exact `WorkflowController::reconcile` branch order, read-only, and report
+/// per instance which branch would abort. Never writes.
+pub fn inspect_workflow_reconcile_failures(
+    control_path: &std::path::Path,
+    scheduler_path: &std::path::Path,
+    now_ms: i64,
+) -> Result<ReconcileDiagnosis, PlatformError> {
+    let control = ControlDb::open_readonly_wal_aware(control_path, 30_000)?;
+    let connection = Connection::open_with_flags(
+        crate::control_db::leaf_nofollow_path(scheduler_path)?,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .map_err(sql_error)?;
+    let _ = connection.pragma_update(None, "query_only", "ON");
+    let scheduler = SchedulerStore {
+        connection: std::sync::Mutex::new(connection),
+        wake: std::sync::Arc::new(crate::scheduler::SchedulerWakeSignal::default()),
+        instance_id: crate::identity::inspect_stored(&control)?.instance_id,
+    };
+    let repository = WorkflowRepository::new(&control);
+    let mut diagnosis = ReconcileDiagnosis {
+        checked_at_ms: now_ms,
+        ..ReconcileDiagnosis::default()
+    };
+    let definitions = control.with_read(|conn| {
+        let mut statement = conn
+            .prepare("SELECT id,name,state,availability,availability_code FROM workflow_definitions")
+            .map_err(sql_error)?;
+        statement
+            .query_map([], |row| {
+                Ok(serde_json::json!({
+                    "id": row.get::<_, String>(0).map_err(sql_error)?,
+                    "name": row.get::<_, String>(1).map_err(sql_error)?,
+                    "state": row.get::<_, String>(2).map_err(sql_error)?,
+                    "availability": row.get::<_, String>(3).map_err(sql_error)?,
+                    "code": row.get::<_, Option<String>>(4).map_err(sql_error)?,
+                }))
+            })
+            .map_err(sql_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(sql_error)
+    })?;
+    diagnosis.definitions = definitions;
+    for reservation in repository.live_reservations(None, 1000)? {
+        let identity = &reservation.identity;
+        let pending = repository.instance_operation(identity.instance_id)?;
+        let instance = scheduler.workflow_instance(identity.instance_id)?;
+        let mut fact = ReconcileInstanceFacts {
+            instance_id: identity.instance_id.to_string(),
+            ref_state: format!("{:?}", reservation.state),
+            external_instance_id: identity
+                .external_instance_id
+                .clone()
+                .unwrap_or_default(),
+            definition_id: identity.target.definition_id.to_string(),
+            scheduler_state: instance.as_ref().map(|i| format!("{:?}", i.state)),
+            pending_operation: pending.as_ref().map(|o| format!("{:?}", o.kind())),
+            identity_mismatch: instance
+                .as_ref()
+                .is_some_and(|i| i.identity != *identity),
+            scheduler_digest_mismatch: false,
+            history_error: None,
+            referrers_intact: None,
+            branch_outcome: String::new(),
+        };
+        if let Some(record) = instance.as_ref() {
+            fact.scheduler_digest_mismatch =
+                crate::workflows::helpers::version_digest(&record.identity.target)?
+                    != record.identity.target.descriptor_sha256;
+            if let Err(error) = scheduler.verify_workflow_history(identity.instance_id) {
+                fact.history_error = Some(error.code().as_str().to_string());
+            }
+        }
+        fact.referrers_intact = Some(
+            repository
+                .instance_referrers_intact(identity)
+                .unwrap_or(false),
+        );
+        fact.branch_outcome = if fact.pending_operation.is_some() {
+            "skip:pending-operation".to_string()
+        } else if fact.identity_mismatch {
+            "corrupt:identity".to_string()
+        } else if instance.is_none() {
+            if matches!(reservation.state, WorkflowRefState::Creating) {
+                "saga:pending-creation".to_string()
+            } else {
+                "corrupt:scheduler-missing".to_string()
+            }
+        } else if instance.as_ref().is_some_and(|i| i.state.is_terminal()) {
+            "retain".to_string()
+        } else if !matches!(reservation.state, WorkflowRefState::Live) {
+            "corrupt:ref-state".to_string()
+        } else {
+            "verify-history".to_string()
+        };
+        diagnosis.reports.push(fact);
+    }
+    for id in scheduler.workflow_instance_ids(None, 1000)? {
+        if scheduler.workflow_instance(id)?.is_some()
+            && !diagnosis
+                .reports
+                .iter()
+                .any(|f| f.instance_id == id.to_string())
+        {
+            diagnosis.scheduler_without_control_row.push(id.to_string());
+        }
+    }
+    Ok(diagnosis)
+}
