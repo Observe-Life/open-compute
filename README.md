@@ -3,6 +3,7 @@
 > - 部署步骤 → [LOCAL-DEPLOY.md](LOCAL-DEPLOY.md)
 > - 踩坑对照 → [deploy/TROUBLESHOOTING.md](deploy/TROUBLESHOOTING.md)
 > - 构建容器 → [deploy/cfkit/Dockerfile](deploy/cfkit/Dockerfile)
+> - 五合一编译镜像（怎么构建/怎么用/怎么清理）→ [deploy/cfkit/README.md](deploy/cfkit/README.md)
 > - 控制面板打不开（/operator/ 503）→ [修复步骤](LOCAL-DEPLOY.md#控制面板打不开operator-返回-503)
 >
 > `main` 分支与官方 v0.3.0 一致，升级只动 `main`；部署套件在 `local-deploy` 分支。
