@@ -6,10 +6,10 @@
 
 ## 文件
 
-- `deploy/cfkit/` — 五合一构建容器（Node 22 + cf CLI + vite + tsc + ocd），详见 `deploy/cfkit/README.md`
-- `deploy/compose.open-compute.yaml` — 单机 compose 参考（只读根、tmpfs、健康检查、停止宽限）
-- `deploy/tokens.env.example` — 三个 token 模板
-- `deploy/TROUBLESHOOTING.md` — 踩坑对照表
+- `cfkit/` — 五合一构建容器（Node 22 + cf CLI + vite + tsc + ocd），详见 `cfkit/README.md`
+- `compose.open-compute.yaml` — 单机 compose 参考（只读根、tmpfs、健康检查、停止宽限）
+- `tokens.env.example` — 三个 token 模板
+- `TROUBLESHOOTING.md` — 踩坑对照表
 
 ## 从零重装
 
@@ -49,7 +49,7 @@ docker exec open-compute sh -c 'curl -s -o /dev/null -w "%{http_code}\n" http://
 
 ## 控制面板打不开（`/operator/` 返回 503）
 
-完整步骤见 `deploy/TROUBLESHOOTING.md` 第 9 条。要点：`control_idempotency` 里残留一条 `system-dashboard:*` 记录，删掉重启即可；面板正常时不要删。
+完整步骤见 `TROUBLESHOOTING.md` 第 9 条。要点：`control_idempotency` 里残留一条 `system-dashboard:*` 记录，删掉重启即可；面板正常时不要删。
 
 ## 实例 ID 与统一登录网关
 
@@ -104,7 +104,7 @@ console.log("session",r.status,"instance_api",r2.status);
 
 ## 构建容器 cfkit
 
-见 `deploy/cfkit/README.md`。
+见 `cfkit/README.md`。
 
 ## 升级
 

@@ -17,7 +17,7 @@
 
 处理：不要删数据绕过去。保留旧目录，新建空目录重新初始化，重新部署 Worker。
 
-**重要**：新实例的 ID 会变。统一登录网关 `state.json` 里的 `instance` 和 `credential` 必须同步更新，否则会出现「登录成功但面板连不上」。步骤见 `deploy/README.md` 的「实例 ID 与统一登录网关」一节。
+**重要**：新实例的 ID 会变。统一登录网关 `state.json` 里的 `instance` 和 `credential` 必须同步更新，否则会出现「登录成功但面板连不上」。步骤见 `README.md` 的「实例 ID 与统一登录网关」一节。
 
 ## 2. Alpine 基础镜像里 ocd 报 not found
 
@@ -134,4 +134,4 @@ docker exec open-compute sh -c 'curl -s -o /dev/null -w "%{http_code}\n" http://
 
 原因：重新初始化后实例 ID 变了，网关 `state.json` 里还是旧 ID。
 
-处理：按 `deploy/README.md` 的「实例 ID 与统一登录网关」一节更新 `instance` 并重新封存 `credential`，然后重启网关容器。
+处理：按 `README.md` 的「实例 ID 与统一登录网关」一节更新 `instance` 并重新封存 `credential`，然后重启网关容器。

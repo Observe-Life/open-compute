@@ -17,7 +17,7 @@
 ## 构建
 
 ```bash
-cd deploy/cfkit
+cd cfkit
 docker build -t cfkit:latest .
 ```
 
@@ -95,7 +95,7 @@ docker run --rm --network container:open-compute \
 
 ```bash
 # 构建
-cd deploy/cfkit && docker build -t cfkit:latest .
+cd cfkit && docker build -t cfkit:latest .
 
 # 验证成员
 docker run --rm cfkit:latest sh -c 'node -v; cf --version; ocd --version; vite --version; tsc -v'

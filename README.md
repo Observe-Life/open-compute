@@ -1,142 +1,295 @@
-# 本地部署
+> **本分支为长期独立维护版本（基于上游 v0.3.0）**
+>
+> - 我们改了什么 → [【部署前】独立维护改动清单.md](【部署前】独立维护改动清单.md)
+> - 部署步骤 → [【部署后】部署必看注意事项/README.md](【部署后】部署必看注意事项/README.md)
+> - 踩坑对照 → [【部署后】部署必看注意事项/TROUBLESHOOTING.md](【部署后】部署必看注意事项/TROUBLESHOOTING.md)
+> - 五合一编译镜像 → [【部署后】部署必看注意事项/cfkit/README.md](【部署后】部署必看注意事项/cfkit/README.md)
+> - 控制面板打不开（/operator/ 503）→ [修复步骤](【部署后】部署必看注意事项/TROUBLESHOOTING.md#9-面板打不开operator-返回-503)
+>
+> 上游代码照原样保留，我们的改动全部登记在改动清单里；升级只动上游代码，补丁按清单重放。
 
-本目录只放**部署后**的东西：拿到现成镜像之后，怎么装、怎么验、出问题怎么查。
+---
 
-镜像本身是怎么产出的，不在这里，见根目录 [`独立维护改动清单.md`](../独立维护改动清单.md)。
+<p align="center">
+  <a href="https://open-compute.dev">
+    <img src="share/brand/open-compute.webp" alt="open-compute" width="480" />
+  </a>
+</p>
 
-## 文件
+<p align="center">
+  <strong>One binary. One daemon. Isolated instances.</strong><br/>
+  A self-hosted, Cloudflare Workers-compatible platform for a single machine.
+</p>
 
-- `deploy/cfkit/` — 五合一构建容器（Node 22 + cf CLI + vite + tsc + ocd），详见 `deploy/cfkit/README.md`
-- `deploy/compose.open-compute.yaml` — 单机 compose 参考（只读根、tmpfs、健康检查、停止宽限）
-- `deploy/tokens.env.example` — 三个 token 模板
-- `deploy/TROUBLESHOOTING.md` — 踩坑对照表
+<p align="center">
+  <a href="https://github.com/elliothux/open-compute/actions/workflows/ci.yml">
+    <img src="https://github.com/elliothux/open-compute/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" />
+  </a>
+  <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Apache-2.0" />
+  <img src="https://img.shields.io/badge/runtime-verified%20workerd%20fork-f38020" alt="verified workerd fork" />
+  <img src="https://img.shields.io/badge/API%20inventory-2%2C256%20members-success" alt="2256 stable members and overloads" />
+  <img src="https://img.shields.io/badge/rust-1.98-orange" alt="Rust 1.98" />
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" alt="macOS | Linux" />
+</p>
 
-## 从零重装
+<p align="center">
+  <a href="https://open-compute.dev">Website</a>
+  · <a href="https://open-compute.dev/docs/">Docs</a>
+  · <a href="https://open-compute.dev/docs/platform/compatibility/">Compatibility</a>
+  · <a href="https://open-compute.dev/docs/project/">Architecture</a>
+</p>
 
-前提：数据目录 `/vol1/docker/open-compute/data`，网络 `backend`。
+<p align="center">
+  English · <a href="README.zh.md">简体中文</a>
+</p>
 
-0）先停掉占用该目录的旧容器，否则 init 会报 `INSTANCE_REGISTRY_INVALID`：
+---
 
-```bash
-docker stop open-compute 2>/dev/null || true
+## The Workers platform, running on your hardware
+
+You already know how to write Cloudflare Workers. **open-compute runs the compatible Workers programming model** — module workers, familiar bindings, and cf workflows — on a single machine you own.
+
+**One binary. One shared daemon. One object authority per instance.** Local filesystem is the default; S3-compatible storage is optional.
+
+No Kubernetes. No Redis. No service mesh. No distributed control plane to babysit. No vendor lock-in.
+
+```
+   Everyone else                        open-compute
+   ─────────────                        ────────────
+   gateway + router                     ┌──────────────┐
+   control plane                        │              │
+   scheduler service          ═══>      │  ocd (1 bin) │
+   Redis / Valkey cluster               │              │
+   Postgres                             └──────────────┘
+   K8s + operators                       + SQLite + Local/S3 objects
 ```
 
-1）生成三个互不相同的 48 位十六进制 token，写进 `/vol1/docker/open-compute/tokens.env`，`chmod 600`。
-`admin` token 建议沿用旧值，否则统一登录网关里封存的凭据也要重新生成。
+## Why open-compute
 
-2）初始化（只在空目录跑一次）：
+**workerd is a runtime, not a platform.** It executes isolated Workers brilliantly — and stops there. No multi-tenant routing, no durable state, no scheduling, no deployment lifecycle, no control API. Everyone who wants Workers on their own infrastructure has to build that layer.
 
-```bash
-docker run --rm -v /vol1/docker/open-compute/data:/var/lib/open-compute \
-  --env-file /vol1/docker/open-compute/tokens.env \
-  -e OC_PUBLIC_BIND=0.0.0.0:8787 \
-  -e OC_PUBLIC_PORT=8787 \
-  -e OC_STORAGE_BACKEND=local \
-  ghcr.io/observe-life/open-compute-init:0.3.0-stallfix1
+open-compute _is_ that layer — and it ships as **one file**.
+
+- **One binary, everything inside.** Runtime, control plane, scheduler, and every product binding. Copy it to a host, point it at a directory, and you are serving traffic.
+- **Fast because it's workerd.** Worker code runs on a pinned, checksum-verified workerd fork. Isolates start in milliseconds — not one process or container per request.
+- **Nothing else to run.** SQLite owns platform metadata and Local storage owns object bytes by default. S3-compatible storage is optional; neither mode needs a database or cache sidecar.
+- **Pinned and verified.** The runtime and its assets are fixed and verified at build and startup. Production startup stays offline.
+- **Yours completely.** You own the code, data, and machines. External services are optional and explicitly configured.
+
+## Proof, not promises
+
+Compatibility here is measured, not asserted. The same fixtures run against open-compute and real Cloudflare wherever the hosted API permits direct comparison.
+
+|           |                                                                                                                                                                  |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **2,256** | stable API members and overloads tracked across the Workers runtime and product bindings                                                                         |
+| **10**    | product surfaces compared request-for-request with real Cloudflare: Workers, Cache, KV, D1, R2, Durable Objects, Queues, Vectorize, AI Search, and Observability |
+| **90%+**  | required line coverage, with real processes, SQLite, and the pinned workerd runtime in acceptance tests                                                          |
+
+## Compatibility
+
+Write standard module workers (`export default { fetch }`) with the bindings you already know. See the [compatibility guide](https://open-compute.dev/docs/platform/compatibility/) for exact behavior and single-node differences.
+
+### Runtime & bindings
+
+| Module                  | Status            |
+| ----------------------- | ----------------- |
+| Workers                 | █████████▉ 99% ✅ |
+| Workers Standard limits | █████████▉ 99% ✅ |
+| KV                      | █████████▉ 99% ✅ |
+| R2                      | █████████▉ 99% ✅ |
+| D1                      | █████████▉ 99% ✅ |
+| Durable Objects         | █████████▉ 99% ✅ |
+| Alarms                  | █████████▉ 99% ✅ |
+| Queues                  | █████████▉ 99% ✅ |
+| Cron                    | █████████▉ 99% ✅ |
+| Workflows               | █████████▉ 99% ✅ |
+| Static Assets           | █████████▉ 99% ✅ |
+| Service Bindings        | █████████▉ 99% ✅ |
+| Cache                   | █████████▉ 99% ✅ |
+| Images                  | █████████▉ 99% ✅ |
+| Version Metadata        | █████████▉ 99% ✅ |
+| WebSocket Hibernation   | █████████▉ 99% ✅ |
+| Vectorize               | █████████▉ 99% ✅ |
+| Markdown Conversion     | █████████▉ 99% ✅ |
+| AI Search               | █████████▉ 99% ✅ |
+| Artifacts               | █████████▉ 99% ✅ |
+| Dynamic Workers         | █████████▉ 99% ✅ |
+
+### Management
+
+| Surface                      | Status                                                                       |
+| ---------------------------- | ---------------------------------------------------------------------------- |
+| Cloudflare v4 API            | █████████░ 90% — local `/client/v4` works with cf and the official SDK       |
+| cf                           | Pinned `1.0.0-beta.12` deploys and manages the documented supported products |
+| Dashboard                    | ████████░░ 80% — operator UI built on the same `/client/v4` API              |
+| Workers Logs / realtime tail | █████████░ 90% — logs, queries, Dashboard Live Tail on one node              |
+
+### Partial
+
+| Module      | Status                                                                                                                                           |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Workers AI  | ██░░░░░░░░ 20% — Markdown Conversion and AI Search only                                                                                          |
+| Browser Run | CDP and managed browser, Quick Actions, DevTools, Live View and Custom AI; [operator guide](docs/references/runbooks/install-and-first-start.md) |
+
+### Planning
+
+Design is underway; bindings and APIs are not available to deploy yet.
+
+| Module     | Status                     |
+| ---------- | -------------------------- |
+| Containers | ██░░░░░░░░ 20% — Planning. |
+
+### Not yet
+
+Uploads or configuration that require these capabilities fail closed.
+
+| Module                          | Status                   |
+| ------------------------------- | ------------------------ |
+| General Workers AI inference    | ░░░░░░░░░░ 0% — Not yet. |
+| Hyperdrive                      | ░░░░░░░░░░ 0% — Not yet. |
+| Analytics Engine                | ░░░░░░░░░░ 0% — Not yet. |
+| Workers for Platforms           | ░░░░░░░░░░ 0% — Not yet. |
+| Pipelines                       | ░░░░░░░░░░ 0% — Not yet. |
+| Rate Limiting                   | ░░░░░░░░░░ 0% — Not yet. |
+| mTLS certificates               | ░░░░░░░░░░ 0% — Not yet. |
+| Tail Workers / traces / Logpush | ░░░░░░░░░░ 0% — Not yet. |
+
+Cloudflare's APIs are broad and intricate. **99% ✅ means the documented public API surface is fully aligned; it does not promise that every behavioral detail is identical to Cloudflare.** open-compute is still at an early stage. If you find behavior that does not match Cloudflare, please [open an issue](https://github.com/elliothux/open-compute/issues/new). Single-node differences are listed in the [compatibility guide](https://open-compute.dev/docs/platform/compatibility/). Live surface: `ocd capabilities --json`.
+
+## Quick start
+
+### Set up with an AI coding agent
+
+Copy this prompt into Codex, Claude Code, or another coding agent:
+
+```text
+Read https://open-compute.dev/llms.txt and install the current open-compute release on this machine. Configure one local instance, inspect any existing installation first, preserve its configuration and instance data, ask before using sudo or making destructive changes, then run ocd status and report the result.
 ```
 
-3）启动并验证：
+[`llms.txt`](https://open-compute.dev/llms.txt) contains the minimum setup and usage instructions, with links to detailed documentation when needed.
 
-```bash
-docker compose up -d open-compute
-docker exec open-compute /opt/open-compute/ocd --version
-docker exec open-compute /opt/open-compute/ocd --no-update-check --system instances --json
-docker exec open-compute sh -c 'curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8787/health/live'
-docker exec open-compute sh -c 'curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8787/operator/'
+### Set up manually
+
+Install the release binary for your user, create the default user-owned instance, and start its login-scoped service:
+
+```sh
+curl -fsSL https://open-compute.dev/install.sh | sh
+ocd setup --yes
+ocd status
+ocd dashboard
 ```
 
-前两条期望正常输出；后两条期望 `200`。只验 `ocd --version` 和 `--system status` 不够：面板坏掉时这两条也是绿的。
+For a host-wide service that starts before login, explicitly choose system scope:
 
-## 控制面板打不开（`/operator/` 返回 503）
-
-完整步骤见 `deploy/TROUBLESHOOTING.md` 第 9 条。要点：`control_idempotency` 里残留一条 `system-dashboard:*` 记录，删掉重启即可；面板正常时不要删。
-
-## 实例 ID 与统一登录网关
-
-每次重新初始化，实例 ID 都会变。登录网关的 `state.json` 里保存着旧 ID 和用它封存的凭据，不同步就会出现「登录成功但面板连不上」。
-
-查当前实例 ID：
-
-```bash
-docker exec open-compute /opt/open-compute/ocd --no-update-check --system instances --json
+```sh
+curl -fsSL https://open-compute.dev/install.sh | sudo sh
+sudo ocd setup --system --yes
 ```
 
-更新网关（在网关容器内执行，用 master.key 重新封存当前 admin token）：
+Use `cloudflare.config.ts` and the official cf + Vite plugin v2 workflow. Node.js 22.18+ runs cf; `ocd cf` selects the deployment target. CI pins cf 1.0.0-beta.12; user versions outside 1.0.x only warn:
 
-```bash
-docker exec container-login-gateway node -e '
-const fs=require("fs"),crypto=require("crypto");
-const key=fs.readFileSync("/secrets/master.key");
-const p="/data/state.json";
-const st=JSON.parse(fs.readFileSync(p,"utf8"));
-const token=fs.readFileSync("/run/secrets/oc-token","utf8").trim();
-const seal=(v,k)=>{const iv=crypto.randomBytes(12),c=crypto.createCipheriv("aes-256-gcm",k,iv),d=Buffer.concat([c.update(v,"utf8"),c.final()]);return [iv,c.getAuthTag(),d].map(x=>x.toString("base64")).join(".");};
-const app=st.apps.find(a=>a.id==="compute");
-app.instance="<新的实例ID>";
-app.credential=seal(token,key);
-fs.writeFileSync(p+".tmp",JSON.stringify(st),{mode:0o600});
-fs.renameSync(p+".tmp",p);
-console.log("updated", app.instance);
-'
-docker restart container-login-gateway
+```sh
+npm install --save-dev cf@1.0.0-beta.12 @cloudflare/vite-plugin@beta vite typescript
+npm run dev
+npm run build
+ocd cf deploy --prebuilt --mode production
 ```
 
-验证（不需要知道登录密码）：
+Production remains **one release executable and one shared daemon**, with explicit per-instance configuration and data directories. Runtime payloads are embedded and verified; daemon startup does not download or search `PATH` for workerd.
 
-```bash
-docker exec container-login-gateway node -e '
-const fs=require("fs"),crypto=require("crypto");
-const key=fs.readFileSync("/secrets/master.key");
-const st=JSON.parse(fs.readFileSync("/data/state.json","utf8"));
-const app=st.apps.find(a=>a.id==="compute");
-const unseal=(v,k)=>{const [iv,tag,d]=v.split(".").map(x=>Buffer.from(x,"base64"));const c=crypto.createDecipheriv("aes-256-gcm",k,iv);c.setAuthTag(tag);return Buffer.concat([c.update(d),c.final()]).toString("utf8");};
-(async()=>{
-const token=unseal(app.credential,key);
-const r=await fetch("http://open-compute:8787/operator/session",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json","Sec-Fetch-Site":"same-origin"},body:"{}"});
-const s=await r.json();
-const r2=await fetch("http://open-compute:8787/client/v4/accounts/"+app.instance,{headers:{Authorization:"Bearer "+s.session_token}});
-console.log("session",r.status,"instance_api",r2.status);
-})();
-'
+For the complete installation path, remote targets, CI, environments, tail, and rollback, see [Get started](https://open-compute.dev/docs/get-started/) and [Develop](https://open-compute.dev/docs/develop/).
+
+## Architecture
+
+<p align="center">
+  <img src="share/open-compute-architecture.png" alt="open-compute architecture" width="880" />
+</p>
+
+| Component                   | Role                                                                                          |
+| --------------------------- | --------------------------------------------------------------------------------------------- |
+| `ocd`                       | The control plane: ingress, API, scheduler, supervisor, and deployment authority              |
+| `workerd`                   | Pinned, checksum-verified Worker runtime                                                      |
+| SQLite                      | Local authoritative state — no external database, no eventual consistency                     |
+| Local / S3 object authority | Bundles, static assets, R2 bytes, Artifacts, snapshots, backups, cache bodies, and AI sources |
+
+Tenants get exactly what their deployment declares — and nothing else. No SQLite or Local object paths, no S3 credentials, no internal tokens, no sibling tenants. Enforced at the capability layer, not by convention.
+
+### Built in Rust, engineered for the hot path
+
+The host is a single async Rust process — no GC pauses, no interpreter, no sidecar hops between the socket and your Worker.
+
+- **Async all the way down.** `tokio` multi-threaded runtime with `axum` + `hyper` serving both planes. Request bodies stream through as `bytes` without buffering whole payloads.
+- **`unsafe_code = "forbid"`.** Workspace-wide — the entire platform is safe Rust. Plus `missing_docs = "deny"`, `unused_must_use = "deny"`, and Clippy `-D warnings` across all targets and features.
+- **Release built for speed.** Full LTO, `codegen-units = 1`, `panic = "abort"`, symbols stripped — one dense, statically-linked artifact.
+- **In-process state.** `rusqlite` embeds SQLite in `ocd`; transactions are function calls, not network round-trips. Foreign keys stay enabled and WAL remains locally owned.
+- **Zero-copy where it counts.** Verified runtime payloads are content-addressed and materialized once, then reused across restarts.
+
+### Layered crates with enforced boundaries
+
+Dependency direction is checked in CI — architecture that can't silently rot:
+
+```
+core ── storage ── artifacts ── runtime      (siblings, lower level)
+                    └── workers              (may use core/storage/artifacts, never runtime)
+                          └── service        (composition root: CLI, HTTP, workerd bridge)
 ```
 
-期望输出：`session 200 instance_api 200`。
+`ocd` compiles the runtime configuration, starts workerd as a supervised child, and communicates over a **loopback-only** channel. It owns readiness, graceful shutdown, restart backoff, and recovery.
 
-## 构建容器 cfkit
+Deployments are **immutable and content-addressed**. `workerLoader` keys are deployment identities, so promotion and rollback move a pointer — they never mutate what is already running.
 
-见 `deploy/cfkit/README.md`。
+## Dashboard
 
-## 升级
+<p align="center">
+  <img src="share/open-compute-dashboard.webp" alt="open-compute Dashboard in dark and light mode" width="1080" />
+</p>
 
-**实例里有 Worker 版本时不能原地升级。** V14 迁移的第一段是硬性守卫：
+The Dashboard manages the compute, storage, AI, and platform resources exposed through `/client/v4`. It also switches between the instances registered with the current `ocd` daemon.
 
-```sql
-INSERT INTO migration_v14_worker_identity_guard (invalid)
-SELECT 1 FROM worker_versions WHERE deleted_at_ms IS NULL LIMIT 1;
-```
+## Native extensions
 
-只要还有未删除的 Worker 版本，这条 INSERT 就违反 CHECK，迁移主动失败，日志是 `MIGRATION_FAILED`。
+When a Worker needs local hardware, a proprietary library, or an internal daemon, an operator can register a **native extension**: a native Provider process with a small JavaScript facade, exposed to Workers through cf Service Bindings (`bindings.worker` + `props`).
 
-正确顺序：
+- **No new Binding type.** Workers see a standard Service Binding; per-binding `props` carry configuration.
+- **Direct data path.** `ocd` authenticates the session, then workerd and the Provider communicate directly over Cap'n Proto.
+- **Fail closed.** Session identities, provider paths, and platform handles never enter tenant code, argv, or logs.
 
-1. 备份旧数据目录（整个 `data`，或至少 `keys/` + `instances/default/`）
-2. 停旧容器
-3. 新建空目录，用新版本 init 镜像初始化
-4. 启动新容器，按「从零重装」的验证清单检查（**必须包含 `/operator/`**）
-5. 重新部署 Worker
-6. 按「实例 ID 与统一登录网关」一节更新网关
+The [extension tutorial](https://open-compute.dev/docs/extension/tutorial/) walks through the complete setup. The repository also includes a small Rust [reference Provider](crates/service/src/bin/host_extension_test_provider/main.rs).
 
-即「新建实例 + 迁移数据」，不是改 tag 重启。
+## What it's not
 
-## 回滚
+Honest boundaries beat surprises in production:
 
-旧数据目录和旧镜像都在时，改 compose 的 image tag 和 volume 指回旧目录即可。
-migration 单向，升级过的目录不能给旧版本用。
+- **Not Cloudflare's global edge.** One node on infrastructure you run — no Anycast, no cross-region replication, no POP fabric. That tradeoff is exactly what buys you strong local consistency.
+- **Not a universal drop-in.** Compatibility is tracked surface by surface, and every deviation is documented rather than glossed over.
+- **Not a multi-replica HA cluster.** One daemon, one machine, and isolated per-instance authorities — by design.
 
-## 我们的镜像
+## Documentation
 
-| 用途 | 镜像 |
-|---|---|
-| 运行时 | `ghcr.io/observe-life/open-compute:0.3.0-stallfix1` |
-| 初始化 | `ghcr.io/observe-life/open-compute-init:0.3.0-stallfix1` |
-| 上游原版（回滚用） | `ghcr.io/elliothux/open-compute:0.3.0` |
+| Goal                       | Start here                                                                                                                                         |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Understand the design      | [Architecture and project guide](https://open-compute.dev/docs/project/)                                                                           |
+| Check API support          | [Compatibility](https://open-compute.dev/docs/platform/compatibility/) · [Worker API index](https://open-compute.dev/docs/platform/reference/api/) |
+| Track unsupported features | [Not available](https://open-compute.dev/docs/platform/unsupported/)                                                                               |
+| Build and deploy Workers   | [Develop](https://open-compute.dev/docs/develop/)                                                                                                  |
+| Download and release       | [GitHub Releases](https://github.com/elliothux/open-compute/releases) · [Project guide](https://open-compute.dev/docs/project/)                    |
+| Run in production          | [Get started](https://open-compute.dev/docs/get-started/) · [Operate](https://open-compute.dev/docs/operate/)                                      |
+| Operate and recover        | [Operate](https://open-compute.dev/docs/operate/) · [Incident guides](https://open-compute.dev/docs/ocd/incidents/current-release/)                |
+| Contribute                 | [Contributing guide](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md)                                                                      |
+
+## Security
+
+Report vulnerabilities privately using [SECURITY.md](SECURITY.md).
+
+- One `ocd` per user or system scope, with exclusive locks for every instance data directory.
+- Internal tokens never appear in argv, environment, logs, status, or metrics.
+- Tenant outbound can reach host-routable public, private, loopback, link-local, and metadata IPs; operators own destination filtering through the host firewall, namespace, container, or VM.
+
+## Sponsors
+
+This project is sponsored by **[Lynx AI](https://lynxai.work)**.
+
+## License
+
+Apache-2.0. The packaged open-compute workerd fork remains under the applicable upstream Cloudflare workerd licensing.
