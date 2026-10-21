@@ -21,7 +21,7 @@ fn public_defaults_and_duration_aliases_resolve_once_and_stored_policy_is_never_
         (
             WorkflowStepKind::Do,
             json!({}),
-            json!({"retries":{"limit":5,"delay":10000,"backoff":"exponential"},"timeout":60000}),
+            json!({"retries":{"limit":5,"delay":10000,"backoff":"exponential"},"timeout":600000}),
         ),
         (
             WorkflowStepKind::Sleep,
@@ -80,8 +80,8 @@ fn public_defaults_and_duration_aliases_resolve_once_and_stored_policy_is_never_
         assert!(declaration(kind, value).resolve().is_err());
     }
     for value in [
-        json!({"timeout":60000}),
-        json!({"retries":{"limit":5,"delay":10000},"timeout":60000}),
+        json!({"timeout":600000}),
+        json!({"retries":{"limit":5,"delay":10000},"timeout":600000}),
         json!({"retries":{"limit":5,"delay":10000,"backoff":"exponential"},"timeout":0}),
     ] {
         assert!(

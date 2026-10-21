@@ -8,7 +8,7 @@ use serde_json::{Map, Value};
 /// Trusted drain budget reserved at the end of every activation.
 pub const WORKFLOW_DRAIN_MARGIN_MS: u64 = 30_000;
 /// Maximum duration of one callback attempt.
-pub const WORKFLOW_MAX_ATTEMPT_MS: u64 = 240_000;
+pub const WORKFLOW_MAX_ATTEMPT_MS: u64 = 1_800_000;
 /// Saturation cap for a computed retry delay, independent of the base delay.
 pub const WORKFLOW_MAX_RETRY_DELAY_MS: u64 = 86_400_000;
 
@@ -119,7 +119,7 @@ impl Default for WorkflowStepConfig {
     fn default() -> Self {
         Self {
             retries: WorkflowRetryPolicy::default(),
-            timeout: 60_000,
+            timeout: 600_000,
             sensitive: None,
         }
     }

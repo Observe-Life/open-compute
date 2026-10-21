@@ -177,10 +177,10 @@ fn workflow_config_is_resolved_strict_frozen_and_bounded() {
     assert_eq!(config, WorkflowStepConfig::default());
     assert_eq!(
         config.canonical_json().unwrap(),
-        r#"{"retries":{"backoff":"exponential","delay":10000,"limit":5},"timeout":60000}"#
+        r#"{"retries":{"backoff":"exponential","delay":10000,"limit":5},"timeout":600000}"#
     );
-    assert!(!config.fits_activation(89_999));
-    assert!(config.fits_activation(90_000));
+    assert!(!config.fits_activation(629_999));
+    assert!(config.fits_activation(630_000));
     let resolved=WorkflowStepConfig::resolve(&json!({"timeout":"1 minute","retries":{"limit":1.0,"delay":"0.0001 second","backoff":"linear"}})).unwrap();
     assert_eq!(resolved.timeout, 60_000);
     assert_eq!(resolved.retries.limit, 1);
