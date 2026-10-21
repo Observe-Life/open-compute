@@ -56,7 +56,7 @@ pub(super) fn router() -> Router<HttpState> {
         )
         .route(
             "/accounts/{account_id}/workflows/{workflow_name}/instances/{instance_id}",
-            get(instances::get),
+            get(instances::get).delete(instances::remove),
         )
         .route(
             "/accounts/{account_id}/workflows/{workflow_name}/instances/{instance_id}/status",

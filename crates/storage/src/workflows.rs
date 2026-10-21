@@ -498,6 +498,20 @@ impl<'a> WorkflowRepository<'a> {
         })
     }
 
+    /// Clear a definition-level fence once every reservation is terminal, so one bounded
+    /// anomaly can never block new instances forever. Never clears an artifact-integrity code.
+    pub fn heal_fenced_definitions(&self, now_ms: i64) -> Result<u64, PlatformError> {
+        self.db.with_immediate(|tx| {
+            let changed = tx.execute(
+                "UPDATE workflow_definitions SET availability='healthy',availability_code=NULL,updated_at_ms=?1
+                 WHERE availability='unavailable' AND availability_code='WORKFLOW_INVARIANT_VIOLATION' AND state='ready'
+                 AND NOT EXISTS(SELECT 1 FROM workflow_instance_referrers r
+                   WHERE r.definition_id=workflow_definitions.id AND r.state NOT IN ('retained','released'))",
+                params![now_ms]).map_err(sql_error)?;
+            Ok(changed as u64)
+        })
+    }
+
     /// Fence admission after an authority mismatch; recovery must prove integrity before clearing it.
     pub fn mark_unavailable(
         &self,

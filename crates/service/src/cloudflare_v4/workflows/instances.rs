@@ -280,6 +280,44 @@ pub(super) async fn get(
     }
 }
 
+/// Delete one instance: terminate first if needed, then drop it from both databases.
+pub(super) async fn remove(
+    State(state): State<HttpState>,
+    Path((account_id, workflow_name, instance_id)): Path<(String, String, String)>,
+    request: Request,
+) -> Response {
+    let (context, account, api) =
+        match authenticated(&state, &request, V4Permission::ProductWrite, &account_id) {
+            Ok(value) => value,
+            Err(response) => return response.into_response(),
+        };
+    if let Err(error) = require_no_query(&request) {
+        return error_response(error, context.request_id());
+    }
+    let request_id = context.request_id();
+    let result = tokio::task::spawn_blocking(move || {
+        let definition = definition(&api, account, &workflow_name)?;
+        let reservation = reservation(&api, definition.id, &instance_id)?;
+        let external = reservation.identity.external_instance_id.clone();
+        WorkflowController::new(api.storage(), api.scheduler(), api.limits())
+            .delete(
+                account,
+                definition.id,
+                reservation.identity.instance_id,
+                WorkflowOperationId::generate(),
+                now_ms(),
+            )
+            .map_err(|error| V4Error::from(&error))?;
+        Ok::<_, V4Error>(json_value!({ "deleted": external }))
+    })
+    .await;
+    match result {
+        Ok(Ok(result)) => success_response(context, result),
+        Ok(Err(error)) => error_response(error, request_id),
+        Err(_) => error_response(V4Error::Internal, request_id),
+    }
+}
+
 pub(super) async fn status(
     State(state): State<HttpState>,
     Path((account_id, workflow_name, instance_id)): Path<(String, String, String)>,

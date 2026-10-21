@@ -412,6 +412,12 @@ impl<'a> WorkflowController<'a> {
             match self.scheduler.workflow_instance(identity.instance_id)? {
                 Some(instance) => {
                     if instance.identity != *identity {
+                        // A terminal instance cannot execute again; its anomaly is bounded by
+                        // retention and GC. Fence only a live instance's authority mismatch.
+                        if instance.state.is_terminal() {
+                            repository.retain_instance(identity, now_ms)?;
+                            continue;
+                        }
                         return self.corrupt(identity, now_ms);
                     }
                     if instance.state.is_terminal() {
@@ -451,6 +457,11 @@ impl<'a> WorkflowController<'a> {
                 if err.code() == ErrorCode::WorkflowRuntimeUnavailable {
                     return Err(err);
                 }
+                // A terminal history mismatch never executes again; retention and GC bound it.
+                // Only a live instance's broken history fences the shared definition.
+                if instance.state.is_terminal() {
+                    continue;
+                }
                 return self.corrupt(identity, now_ms);
             }
         }
@@ -461,6 +472,7 @@ impl<'a> WorkflowController<'a> {
             .maintain_workflow_due(now_ms, self.limits, limit)?;
         self.collect_expired(limit, now_ms)?;
         repository.retire_unused_versions(limit, now_ms)?;
+        repository.heal_fenced_definitions(now_ms)?;
         self.scheduler.wake_signal().notify();
         Ok(())
     }
