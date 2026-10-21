@@ -1,9 +1,8 @@
 # 本地部署
 
-本分支 `0.3.0-maintained` 是长期独立维护分支，基于上游 `v0.3.0`。
-我们的每一条源码改动与补丁记录在根目录 [`独立维护改动清单.md`](../独立维护改动清单.md)。
+本目录只放**部署后**的东西：拿到现成镜像之后，怎么装、怎么验、出问题怎么查。
 
-本目录只放本机部署 open-compute 的文件。
+镜像本身是怎么产出的，不在这里，见根目录 [`独立维护改动清单.md`](../独立维护改动清单.md)。
 
 ## 文件
 
@@ -141,5 +140,3 @@ migration 单向，升级过的目录不能给旧版本用。
 | 运行时 | `ghcr.io/observe-life/open-compute:0.3.0-stallfix1` |
 | 初始化 | `ghcr.io/observe-life/open-compute-init:0.3.0-stallfix1` |
 | 上游原版（回滚用） | `ghcr.io/elliothux/open-compute:0.3.0` |
-
-镜像由 GitHub Actions 的 `build-patched-image.yml` 从本分支构建，`workflow_dispatch` 手动触发，输入一个新 tag。

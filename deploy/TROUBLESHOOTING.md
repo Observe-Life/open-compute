@@ -135,13 +135,3 @@ docker exec open-compute sh -c 'curl -s -o /dev/null -w "%{http_code}\n" http://
 原因：重新初始化后实例 ID 变了，网关 `state.json` 里还是旧 ID。
 
 处理：按 `deploy/README.md` 的「实例 ID 与统一登录网关」一节更新 `instance` 并重新封存 `credential`，然后重启网关容器。
-
-## 11. 工作流卡在队列不动（已修复，保留判断方法）
-
-现象：新触发的实例一直 `queued`，日志反复出现 `Workflow result unknown; lease retained` 和 `WORKFLOW_RUNTIME_UNAVAILABLE`，dashboard 正常、静态资源正常，只有工作流不推进。
-
-原因（修复前）：工作流池连续三次拿不到运行时结果就熔断，而熔断只能靠测试专用函数解除，生产环境没有任何路径恢复，队列永久停滞。
-
-处理：本分支已修，见根目录 `独立维护改动清单.md` 的 P001。若在未打补丁的镜像上遇到，临时办法是重启容器（等价于清空熔断状态），但会重现。
-
-判断是否已修复：熔断后等待 30 秒，如果日志重新出现正常的 claim、实例状态开始变化，说明补丁生效。
