@@ -27,33 +27,36 @@ docker build -t cfkit:latest .
 docker run --rm cfkit:latest sh -c 'node -v; cf --version; ocd --version; vite --version; tsc -v'
 ```
 
-## 使用：拉起临时容器，用完即删
+## 使用：常驻一个空闲容器（实测 516 KiB）
 
-它不是常驻服务。每次编译拉起一个容器，`--rm` 让它在退出时自动销毁：
-
-```bash
-docker run --rm \
-  -v /vol1/docker/open-compute/projects/multimedia-pipeline:/app \
-  -w /app cfkit:latest sh -c 'cf build --mode production'
-```
-
-资源占用：
-
-- 不使用时：**没有容器进程，不占内存、不占端口、不参与开机自启**，只占磁盘上的镜像层（约 1.27 GB）
-- 运行时：编译期间占用 CPU 和内存（vite / tsc 约几百 MB），命令结束容器销毁，内存立即归还
-
-如果嫌每次冷启动慢，可以让容器常驻（基础占用约 10 MB，Node 不启动）：
+它是常驻的，但不跑任何业务进程，只挂着 `sleep infinity` 等 `docker exec`：
 
 ```bash
-docker run -d --name cfkit-idle open-compute:0.3.0 sleep infinity
-docker exec -w /vol1/docker/open-compute/projects/multimedia-pipeline cfkit-idle \
-  sh -c 'cf build --mode production'
-docker rm -f cfkit-idle   # 不用时立刻回到"只剩镜像"的状态
+docker run -d --name cfkit --restart unless-stopped --network backend \
+  -v /vol1/docker/open-compute/projects:/work \
+  cfkit:latest sleep infinity
 ```
+
+实测占用：
+
+```
+MEM 516KiB / 7.469GiB
+CPU 0.00%
+```
+
+常驻一个容器只花半兆内存，比每次临时拉起更省事，也不会在清理无用镜像时被误删（它是运行中的容器，不是"没有容器的镜像"）。
+
+编译时 exec 进去：
+
+```bash
+docker exec -w /work/multimedia-pipeline cfkit sh -c 'cf build --mode production'
+```
+
+部署必须共享 open-compute 的网络命名空间，常驻容器做不到，所以部署这一步仍用临时容器。
 
 ## 部署到 open-compute
 
-`ocd` 只允讹 loopback 走 HTTP，所以部署容器要共享 open-compute 的网络命名空间：
+`ocd` 只允许 loopback 走 HTTP，所以部署容器要共享 open-compute 的网络命名空间：
 
 ```bash
 docker run --rm --network container:open-compute \
