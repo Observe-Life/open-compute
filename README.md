@@ -1,3 +1,7 @@
+> **本仓库分支说明**
+> 当前分支 `0.3.0-maintained` 是基于上游 `v0.3.0` 的长期独立维护分支。
+> 源码改动见 [`独立维护改动清单.md`](独立维护改动清单.md)，本机部署见 [`deploy/README.md`](deploy/README.md)。
+
 <p align="center">
   <a href="https://open-compute.dev">
     <img src="share/brand/open-compute.webp" alt="open-compute" width="480" />
