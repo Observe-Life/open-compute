@@ -22,6 +22,17 @@ struct DeadlineInputs {
 }
 
 impl SchedulerService {
+    /// Bounded cooldown before a circuit-open workflow pool may probe again.
+    /// Grows exponentially with consecutive infrastructure failures so a broken
+    /// runtime is retried on a widening interval instead of staying latched.
+    fn workflow_circuit_cooldown(&self) -> Duration {
+        let failures = self.workflow_infra_failures.load(Ordering::Acquire);
+        let steps = u32::try_from(failures.saturating_sub(3).min(6)).unwrap_or(6);
+        Duration::from_secs(30)
+            .saturating_mul(1_u32 << steps)
+            .min(Duration::from_secs(900))
+    }
+
     /// Run generation-safe claim/repair loops, then boundedly drain in-flight dispatches.
     pub async fn run(
         self: Arc<Self>,
@@ -49,6 +60,7 @@ impl SchedulerService {
         let mut queue_pool = PoolRuntime::ready();
         let mut cron_pool = PoolRuntime::ready();
         let mut workflow_pool = PoolRuntime::ready();
+        let mut workflow_circuit_until: Option<Instant> = None;
         let mut repair_deadline = self.clock.monotonic_now();
         let mut dispatches = JoinSet::new();
         let mut version_reconcile = JoinSet::new();
@@ -80,11 +92,26 @@ impl SchedulerService {
             cron_pool.refresh_deadline(now_mono);
             workflow_pool.refresh_deadline(now_mono);
             if self.workflow_pool_state() == SchedulerPoolState::CircuitOpen {
-                workflow_pool.permanent_failure();
-            } else if workflow_pool.state() == SchedulerPoolState::CircuitOpen
-                && self.workflow_pool_state() == SchedulerPoolState::Ready
-            {
-                workflow_pool.probe_succeeded();
+                // A circuit-open pool must not stay latched forever. Hold the
+                // trip for a bounded, exponentially growing cooldown, then let
+                // one probe through. Queued work drains on recovery; the
+                // runtime keepalive decides whether the pool stays up.
+                let deadline = *workflow_circuit_until
+                    .get_or_insert_with(|| now_mono + self.workflow_circuit_cooldown());
+                if now_mono >= deadline {
+                    workflow_pool.probe_succeeded();
+                    self.set_workflow_pool_state(SchedulerPoolState::Ready);
+                    self.workflow_infra_failures.store(0, Ordering::Release);
+                    workflow_circuit_until = None;
+                    self.wake.notify();
+                }
+            } else {
+                workflow_circuit_until = None;
+                if workflow_pool.state() == SchedulerPoolState::CircuitOpen
+                    && self.workflow_pool_state() == SchedulerPoolState::Ready
+                {
+                    workflow_pool.probe_succeeded();
+                }
             }
             if !workflow.enabled {
                 self.set_workflow_pool_state(SchedulerPoolState::Disabled);

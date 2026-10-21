@@ -1,0 +1,76 @@
+name: build-patched-image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to publish (must not overwrite an official tag)"
+        required: true
+        default: "0.3.0-retry1"
+
+concurrency:
+  group: build-patched-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+          lfs: true
+
+      - name: Set image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Set up pinned toolchains and runtime inputs
+        uses: ./.github/actions/setup-open-compute
+
+      - name: Build dashboard assets and runtime payload
+        run: bun run build
+
+      - name: Build ocd
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/.temp/release-target
+        run: mbx build --locked --release -p open-compute-service --bin ocd
+
+      - name: Stage ocd for the container image
+        run: |
+          set -euo pipefail
+          find .temp/release-target -type f -name ocd -path "*/release/*" | head -10
+          BIN="$(find .temp/release-target -type f -name ocd -path "*/release/*" | head -1)"
+          test -n "$BIN"
+          ls -lh "$BIN"
+          cp "$BIN" examples/container/ocd.linux-amd64
+          ls -lh examples/container/ocd.linux-amd64
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish patched runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: examples/container
+          target: runtime
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:${{ inputs.tag }}
+
+      - name: Publish patched init image
+        uses: docker/build-push-action@v6
+        with:
+          context: examples/container
+          target: init
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}-init:${{ inputs.tag }}
