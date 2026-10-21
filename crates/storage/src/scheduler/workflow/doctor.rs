@@ -221,6 +221,7 @@ pub struct ReconcileInstanceFacts {
 pub struct ReconcileDiagnosis {
     pub definitions: Vec<serde_json::Value>,
     pub checked_at_ms: i64,
+    pub samples: Vec<serde_json::Value>,
     pub reports: Vec<ReconcileInstanceFacts>,
     pub scheduler_without_control_row: Vec<String>,
 }
@@ -304,6 +305,32 @@ pub fn inspect_workflow_reconcile_failures(
                 .instance_referrers_intact(identity)
                 .unwrap_or(false),
         );
+        if diagnosis.reports.len() < 3 {
+            if let Some(record) = instance.as_ref() {
+                let stored = hex::encode(record.identity.target.descriptor_sha256);
+                let recomputed = crate::workflows::helpers::version_digest(&record.identity.target)
+                    .map(hex::encode)
+                    .unwrap_or_else(|_| "digest-error".to_string());
+                let descriptor = serde_json::json!({
+                    "schemaVersion": 2,
+                    "instanceId": record.identity.target.instance_id,
+                    "definitionId": record.identity.target.definition_id,
+                    "workflowVersionId": record.identity.target.workflow_version_id,
+                    "workerId": record.identity.target.worker_id,
+                    "workerVersionId": record.identity.target.worker_version_id,
+                    "workerCodeSha256": hex::encode(record.identity.target.worker_code_sha256),
+                    "className": record.identity.target.class_name,
+                    "loaderSchemaVersion": record.identity.target.loader_schema_version,
+                    "capabilityVersion": record.identity.target.capability_version,
+                });
+                diagnosis.samples.push(serde_json::json!({
+                    "instanceId": fact.instance_id,
+                    "stored": stored,
+                    "recomputed": recomputed,
+                    "descriptor": descriptor,
+                }));
+            }
+        }
         fact.branch_outcome = if fact.pending_operation.is_some() {
             "skip:pending-operation".to_string()
         } else if fact.identity_mismatch {
