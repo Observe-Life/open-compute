@@ -1,0 +1,21 @@
+name: forensics-p003
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: forensics-p003
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+      - uses: ./.github/actions/setup-open-compute
+      - name: Run read-only reconcile diagnosis
+        run: |
+          cargo run --locked -p open-compute-storage --example p003_repro -- \
+            ./debug-data/p003-control.sqlite ./debug-data/p003-scheduler.sqlite
