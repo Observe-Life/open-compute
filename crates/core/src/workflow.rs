@@ -78,7 +78,7 @@ impl Default for WorkflowsConfig {
             max_total_state_bytes: 1024 * 1024 * 1024,
             lease_ms: 60000,
             heartbeat_ms: 20000,
-            dispatch_timeout_ms: 1_800_000,
+            dispatch_timeout_ms: 300_000,
             recovery_backoff_ms: 1000,
             creation_grace_ms: 60000,
             max_parallel_steps: 4,
