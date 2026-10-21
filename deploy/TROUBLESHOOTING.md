@@ -81,18 +81,24 @@
     GET /operator/  ->  503
     日志            dashboard bootstrap failed  code=RUNTIME_UNAVAILABLE
 
-数据库里是が版本建好了，部署没落库き：`worker_versions` 有 ready 版本，但 `worker_deployments` 为 0、`system_owned_versions.assets_sha256` 全 0。
+原因：首次创建面板版本失败后，`control_idempotency` 里留下一条 `system-dashboard:*` 记录，之后每次启动都直接复用上次的结果，不再创建。
 
-原因：0.3.0 首次启动时面板 bootstrap 与 workerd 的 generation 握手竞争，失败后指纹永远写不上，每次启动重复。
+处理：删掉这条记录并重启（原版镜像即可）：
 
-处理：
+```bash
+python3 - <<'PY'
+import sqlite3
+con = sqlite3.connect('/vol1/docker/open-compute/data/instances/default/data/control.sqlite')
+n = con.execute("delete from control_idempotency where scope='version.create' and idempotency_key like 'system-dashboard:%'").rowcount
+con.commit()
+print('deleted', n)
+PY
+docker restart open-compute
+```
 
-1. 换用带重试的镜像 `ghcr.io/observe-life/open-compute:0.3.0-retry1`（改 compose 的 image tag 后重启）
-2. 换镜像仍失败时，看日志里的 `message = ...`，把内容追加到上游 issue
-3. 不要手工改数据库（会从 `RUNTIME_UNAVAILABLE` 变成 `INTERNAL`，仍 503，还可能把实例弄成 `MIGRATION_FAILED`）
+面板正常时不要删：它指向的是成功版本。
 
-上游 issue：https://github.com/elliothux/open-compute/issues/168
-详细步骤：`LOCAL-DEPLOY.md` 的「控制面板打不开」一节。
+完整说明见 `LOCAL-DEPLOY.md` 的「控制面板打不开」一节。
 
 ## 10. 面板正常后登录网关仍连不上
 

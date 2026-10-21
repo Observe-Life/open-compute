@@ -55,62 +55,60 @@ GET /operator/  ->  503
 日志            dashboard bootstrap failed  code=RUNTIME_UNAVAILABLE
 ```
 
-数据库里能看到「版本建好了，但部署没落库」：
-
-```
-worker_versions                      1 条 ready（113 个资源文件）
-worker_deployments                   0 条
-deployment_runtime_assessments       0 条
-workers.active_deployment_id         NULL
-system_owned_versions.assets_sha256  32 个 0
-```
-
 ### 原因
 
-0.3.0 首次启动时，面板 bootstrap 在 `wait_for_supervisor_running` 之后立刻执行，会和 workerd 的 generation 握手竞争。竞争失败后版本存在、部署记录没有、指纹写不上，于是**每次启动都重复同一次失败**。
+首次启动创建面板版本失败后，`control_idempotency` 表里会留下一条记录：
 
-上游 issue：https://github.com/elliothux/open-compute/issues/168
-
-### 修复
-
-**方法一：换成带重试的镜像（已验证可用）**
-
-```yaml
-# deploy/compose.open-compute.yaml
-image: ghcr.io/observe-life/open-compute:0.3.0-retry1
 ```
+scope            version.create
+idempotency_key  system-dashboard:<面板指纹>
+```
+
+之后每次启动都会命中这条记录，直接复用上次的结果，不再真正创建面板版本，所以永远 503。
+
+### 修复：删掉这条记录，重启（原版镜像即可）
+
+1）备份：
 
 ```bash
-docker pull ghcr.io/observe-life/open-compute:0.3.0-retry1
-docker compose up -d open-compute
-docker exec open-compute sh -c 'curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8787/operator/'
-# 期望 200
+docker exec open-compute sh -c 'cp /var/lib/open-compute/instances/default/data/control.sqlite /var/lib/open-compute/instances/default/data/control.sqlite.bak'
 ```
 
-该镜像只做两件事：bootstrap 失败后重试 2 次（间隔 2 秒）；失败时把 `error.message()` 打进日志。
-tag 与官方 `0.3.0` 隔离，出问题把 tag 改回 `0.3.0` 即可。
+2）删记录（在宿主机执行）：
 
-**方法二：看日志里的 message 再判断**
+```bash
+python3 - <<'PY'
+import sqlite3
+p = '/vol1/docker/open-compute/data/instances/default/data/control.sqlite'
+con = sqlite3.connect(p)
+n = con.execute("""
+    delete from control_idempotency
+    where scope = 'version.create'
+      and idempotency_key like 'system-dashboard:%'
+""").rowcount
+con.commit()
+con.close()
+print('deleted', n)
+PY
+```
 
-换镜像后仍然 503 时，日志会多出 `message = ...`：
+3）重启并验证：
 
-- `runtime generation is unavailable before deployment admission` — generation 还没就绪
-- `runtime generation changed during deployment admission` — 校验期间 workerd 重启
-- `real runtime validation failed internally` / `reported a non-runnable version` — workerd 拒绝该版本
+```bash
+docker restart open-compute
+sleep 60
+docker exec open-compute sh -c 'curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8787/operator/'
+```
 
-把这三类信息追加到 issue #168，比一句「503」有用得多。
+期望 `200`。成功后表里会自动写回一条指向新版本的记录。
 
-**不要做的事：手工改数据库**
+### 注意
 
-已验证的失败路径：
+面板正常时**不要删**这条记录：它指向的是成功版本，删了会让下次启动重新创建。
 
-1. 只插 `worker_deployments` → 触发器拦：`deployment target must be a ready version`
-2. 再插 `deployment_runtime_assessments`（state=dispatchable）→ 还必须给 `startup_id`
-3. 再更新 `workers.active_deployment_id` → 三者同时满足才放行
-4. 全部补齐 → 错误从 `RUNTIME_UNAVAILABLE` 变成 `INTERNAL`，仍然 503
-5. 中途误动对象存储 → 实例可能进入 `OBJECT_STORAGE_INTEGRITY_ERROR` / `MIGRATION_FAILED`
+### 面板正常后
 
-面板正常后必须做的一步：把登录网关的实例 ID 改成当前实例，见下一节。
+把登录网关的实例 ID 改成当前实例，见下一节。
 
 ## 实例 ID 与统一登录网关
 
