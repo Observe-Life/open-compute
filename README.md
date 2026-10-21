@@ -1,6 +1,14 @@
-> **本仓库分支说明**
-> 当前分支 `0.3.0-maintained` 是基于上游 `v0.3.0` 的长期独立维护分支。
-> 源码改动见 [`独立维护改动清单.md`](独立维护改动清单.md)，本机部署见 [`deploy/README.md`](deploy/README.md)。
+> **本分支为长期独立维护版本（基于上游 v0.3.0）**
+>
+> - 我们改了什么 → [独立维护改动清单.md](独立维护改动清单.md)
+> - 部署步骤 → [deploy/README.md](deploy/README.md)
+> - 踩坑对照 → [deploy/TROUBLESHOOTING.md](deploy/TROUBLESHOOTING.md)
+> - 五合一编译镜像 → [deploy/cfkit/README.md](deploy/cfkit/README.md)
+> - 控制面板打不开（/operator/ 503）→ [修复步骤](deploy/TROUBLESHOOTING.md#9-面板打不开operator-返回-503)
+>
+> 上游代码照原样保留，我们的改动全部登记在改动清单里；升级只动上游代码，补丁按清单重放。
+
+---
 
 <p align="center">
   <a href="https://open-compute.dev">
