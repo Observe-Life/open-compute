@@ -135,3 +135,42 @@ docker exec open-compute sh -c 'curl -s -o /dev/null -w "%{http_code}\n" http://
 原因：重新初始化后实例 ID 变了，网关 `state.json` 里还是旧 ID。
 
 处理：按 `README.md` 的「实例 ID 与统一登录网关」一节更新 `instance` 并重新封存 `credential`，然后重启网关容器。
+
+## 11. 重建镜像后 /operator/ 第一次 503，重启即自愈
+
+现象：改 compose 镜像 tag、`docker compose up -d` 重建容器后，`/health/live` 是 200，`/operator/` 是 503。
+
+跟第 9 条的区别：此时 `control_idempotency` 里**并没有** `system-dashboard:*` 记录可删（查出来是 0 条）。
+
+原因：启动时序问题——dashboard 版本创建尝试在运行时还没准备好时进行了一次，失败一次后状态卡住。
+
+处理：直接 `docker restart open-compute`，等约 50 秒，`/operator/` 恢复 200。**不要**按第 9 条删记录（没有记录可删且不需要）。
+
+判断用哪条：503 时先看 `control_idempotency` 有没有 `system-dashboard:*` 记录。**有 → 第 9 条**（删记录）；**没有 → 本条**（重启一次）。
+
+## 12. 触发新实例报 9100006「the request conflicts with current state」
+
+现象：向 `/workflows/<definition>/instances` POST 触发，返回
+
+    {"success":false,"errors":[{"code":9100006,"message":"the request conflicts with current state"}]}
+
+原因分两层：
+
+1. 直接原因：该 workflow definition 在 control 库里被标成 `availability='unavailable'`：
+   ```
+   workflow_definitions
+     availability='unavailable'
+     availability_code='WORKFLOW_INVARIANT_VIOLATION'
+   ```
+   恢复语句：
+   ```sql
+   UPDATE workflow_definitions
+   SET availability='healthy', availability_code=NULL
+   WHERE availability='unavailable';
+   ```
+2. 深层原因：调度的对账（reconcile）每 30 秒 probe 一次工作流实例（见【部署前】独立维护改动清单 P001 的熔断与 P002 的窗口冲突），发现异常会把 definition 打成 unavailable。根因在调度内核的对账与重试窗口冲突——已经单独修复（见【部署前】P001），若再次出现，先看【部署前】清单里最新一条的「为什么这会发生」。
+
+SQL 合法值：`availability` ∈ ('healthy','degraded','unavailable')，且约束要求 healthy 时 `availability_code` 必须为 NULL。备份先行：
+```bash
+docker exec open-compute sh -c 'cp /var/lib/open-compute/instances/default/data/control.sqlite /var/lib/open-compute/instances/default/data/control.sqlite.bak'
+```
