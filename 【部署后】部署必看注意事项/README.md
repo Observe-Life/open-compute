@@ -35,6 +35,8 @@ docker run --rm -v /vol1/docker/open-compute/data:/var/lib/open-compute \
   ghcr.io/observe-life/open-compute-init:0.3.0-stallfix1
 ```
 
+3.5）设置调度器兜底巡检间隔（上游默认 100ms 导致空载常态 ~5% 单核 CPU，实测改 1 秒降到 2% 且任务响应不变）——`compute.toml` 加 `[scheduler]` 段 `poll_interval_ms = 1000`，详见 [`调度器兜底间隔.md`](调度器兜底间隔.md)。
+
 3）启动并验证：
 
 ```bash
