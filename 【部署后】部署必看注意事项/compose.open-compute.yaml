@@ -1,5 +1,7 @@
 services:
   open-compute:
+    environment:
+      TCMALLOC_RELEASE_RATE: "10"
     image: ghcr.io/observe-life/open-compute:0.3.0-stallfix1
     pull_policy: never
     container_name: open-compute
