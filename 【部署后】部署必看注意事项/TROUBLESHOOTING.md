@@ -174,3 +174,34 @@ SQL 合法值：`availability` ∈ ('healthy','degraded','unavailable')，且约
 ```bash
 docker exec open-compute sh -c 'cp /var/lib/open-compute/instances/default/data/control.sqlite /var/lib/open-compute/instances/default/data/control.sqlite.bak'
 ```
+
+## 13. Worker 步骤带重试参数报 WORKFLOW_STEP_CONFIG_UNSUPPORTED
+
+现象：workflow step 写法 `step.do("name", { retries: { maxAttempts: 3 } }, fn)`，实例报
+`WORKFLOW_STEP_CONFIG_UNSUPPORTED` 后直接 errored。
+
+原因：本分支的 workerd workflow 步骤不支持 retries 配置参数。
+
+处理：去掉步骤级重试配置；需要重试时在队列消费者层做（`maxRetries` + `message.retry()`），或把重试逻辑写进业务代码。
+
+## 14. 部署后第一次调用报 RUNTIME_UNAVAILABLE / 503（30 秒后失败）
+
+现象：`cf deploy` 完成后立刻调用 Worker，30 秒超时返回
+`RUNTIME_UNAVAILABLE: the workerd runtime is unavailable`。
+
+原因：部署切换的静默窗口期，旧世代退避、新世代未就绪。
+
+处理：等 30–60 秒重试即可自愈（P001 的熔断冷却兜底）。**不要**按第 9 条删记录。
+
+## 15. 附件经数据通道转写报 gemini INVALID_ARGUMENT / 未读出内容
+
+现象：astrbot-kb-sync 的图片转写全部「未读出内容」，gemini 返回
+`400 INVALID_ARGUMENT: Unable to process input image`。
+
+原因：数据通道 `GET /api/attachment/<id>` 返回了 `{mime, bytes}` 的 JSON 包装，
+消费方把 JSON 文本当图片字节转写。
+
+处理：通道返回**纯二进制流**（mime 放 `x-attachment-mime` 响应头），消费方按
+`arrayBuffer()` 读取、从头字段取 mime。修复于 2026-10-24。
+
+另注：转写报 `gemini 429` 是免费层当日配额耗尽（按天重置），不是代码问题。

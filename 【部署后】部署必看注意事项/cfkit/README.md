@@ -110,3 +110,28 @@ docker ps -a | grep cfkit
 # 彻底清理
 docker rmi cfkit:latest
 ```
+
+## 当前挂载与常驻通道脚本（2026-10-24 起）
+
+cfkit 不只是构建工具箱，还是 astrbot-kb-sync 工作流的**数据通道**宿主：
+
+| 挂载 | 挂载点 | 权限 | 用途 |
+|---|---|---|---|
+| `/vol1/docker/open-compute/projects` | `/work` | rw | Worker 项目源码（含通道脚本 `kb-channel/app.mjs`） |
+| `/vol1/1001/bingcan/1. 同步区/7. AI知识库中转` | `/sync` | rw | md 落盘区（台账 `.kb-sync-state.json` 在根，md 在 `1. 智能体会话/`） |
+| `/vol1/docker/astrbot/data` | `/astrbot` | **ro** | AstrBot 会话数据库与附件（只读） |
+
+启动命令（含通道脚本 + 进程级守护循环）：
+
+```bash
+docker run -d --name cfkit --restart unless-stopped --network backend \
+  -v /vol1/docker/open-compute/projects:/work \
+  -v "/vol1/1001/bingcan/1. 同步区/7. AI知识库中转:/sync" \
+  -v /vol1/docker/astrbot/data:/astrbot:ro \
+  cfkit:latest sh -c 'while :; do node /work/kb-channel/app.mjs 2>&1 | tee -a /work/kb-channel/channel.log; sleep 2; done'
+```
+
+- 通道监听 `8601`（仅 backend 网络），工作流经 `http://cfkit:8601` 访问。
+- 通道接口：`/api/conversations`、`/api/messages?id=<uuid>`、`/api/attachment/<id>`（**纯二进制流**，mime 在 `x-attachment-mime` 头）、`/api/write`、`/api/delete`、`/api/state(-update/-delete)`。
+- 附件接口必须返回二进制；返回 JSON 会被工作流当图片字节转写，报 gemini `INVALID_ARGUMENT`（2026-10-24 踩过）。
+- 部署 Worker 时临时容器与通道互不影响；部署期间通道继续服务。

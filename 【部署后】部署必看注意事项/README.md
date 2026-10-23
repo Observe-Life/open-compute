@@ -108,7 +108,17 @@ console.log("session",r.status,"instance_api",r2.status);
 
 ## 构建容器 cfkit
 
-见 `cfkit/README.md`。
+见 `cfkit/README.md`。cfkit 兼任 astrbot-kb-sync 工作流的数据通道（三个挂载 + 常驻通道脚本，见 cfkit/README.md「当前挂载与常驻通道脚本」）；cfkit 重建时通道会随启动命令自动拉起。
+
+## 知识库同步工作流（astrbot-kb-sync）
+
+把 AstrBot 会话转成 md、落盘同步区、导入 WeKnora「智能体会话」分区，会话↔文档一一对应。
+
+- 源码：宿主机 `/vol1/docker/open-compute/projects/astrbot-kb-sync`（open-compute Worker，部署方式同 multimedia-pipeline）
+- 排队：队列 `astrbot-conv-sync`（consumer `maxConcurrency=2`、`maxRetries=2`，失败记账退出不阻塞）
+- 触发：`POST /run?limit=N`（手动，走 worker origin：`http://astrbot-kb-sync.<实例ID>.localhost:8787/run`，注意 Host 头）；定时触发当前**暂停**（恢复：在 `cloudflare.config.ts` 的 triggers 里追加 `triggers.scheduled({ schedule: "37 * * * *" })` 后重新部署）
+- 台账：`/vol1/1001/bingcan/1. 同步区/7. AI知识库中转/.kb-sync-state.json`（会话UUID → md 文件名 + WeKnora 文档 ID）
+- 同会话旧文档自动清理：导入前删除同前缀旧文档 + 解析失败删除半成品，保证一会话一篇
 
 ## 升级
 
