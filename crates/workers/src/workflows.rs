@@ -471,7 +471,11 @@ impl<'a> WorkflowController<'a> {
         self.scheduler
             .maintain_workflow_due(now_ms, self.limits, limit)?;
         self.collect_expired(limit, now_ms)?;
-        repository.retire_unused_versions(limit, now_ms)?;
+        // Retention is a tail task: a foreign-key conflict on legacy rows must
+        // not block instance startup. Log and continue; the next cycle retries.
+        if let Err(error) = repository.retire_unused_versions(limit, now_ms) {
+            eprintln!("[diag] retire_unused_versions failed (non-fatal): {error}");
+        }
         repository.heal_fenced_definitions(now_ms)?;
         self.scheduler.wake_signal().notify();
         Ok(())
