@@ -537,7 +537,7 @@ async fn run_until_signal(
                     }
                 }
                 if let Err(error) = outcome {
-                    tracing::error!(code = error.code().as_str(), "instance runtime stopped");
+                    tracing::error!(code = error.code().as_str(), detail = %error, "instance runtime stopped");
                     if stop_on_instance_error {
                         result = Err(error);
                         break;
