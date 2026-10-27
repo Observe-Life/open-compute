@@ -265,7 +265,16 @@ impl<'a> WorkerRepository<'a> {
             let mut recovered = 0_u32;
             for version in candidates {
                 let version_id = VersionId::from_str(&version).map_err(|_| invariant())?;
-                delete_version_products(tx, version_id)?;
+                // One poisoned legacy version must not abort the whole recovery
+                // transaction (and instance startup with it). Isolate per version.
+                tx.execute("SAVEPOINT version_recover", []).map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
+                if let Err(error) = delete_version_products(tx, version_id) {
+                    eprintln!("[diag] {} delete products failed, skipping version {version}: {error}", file!());
+                    tx.execute("ROLLBACK TO version_recover", []).map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
+                    tx.execute("RELEASE version_recover", []).map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
+                    continue;
+                }
+                tx.execute("RELEASE version_recover", []).map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 let changed = tx
                     .execute(
                         "UPDATE worker_versions
