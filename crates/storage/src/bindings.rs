@@ -134,7 +134,7 @@ impl<'a> BindingRepository<'a> {
                     },
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let Some((binding, resource, version_state, referrer)) = row else {
                 return Err(PlatformError::new(
                     ErrorCode::BindingNotFound,
@@ -194,7 +194,7 @@ pub(crate) fn read_version_bindings_conn(
              JOIN workers w ON w.id = d.worker_id
              WHERE b.version_id = ?1 ORDER BY b.name, b.id",
         )
-        .map_err(|_| db_error())?;
+        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
     let rows = statement
         .query_map([version_id.to_string()], |row| {
             let binding = map_binding(row)?;
@@ -215,7 +215,7 @@ pub(crate) fn read_version_bindings_conn(
             }
             Ok(binding)
         })
-        .map_err(|_| db_error())?;
+        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
     collect_rows(rows)
 }
 

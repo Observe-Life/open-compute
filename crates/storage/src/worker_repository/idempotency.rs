@@ -27,7 +27,7 @@ impl<'a> WorkerRepository<'a> {
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if let Some((state, stored, response)) = existing {
                 if stored.as_slice() != fingerprint {
                     return Err(PlatformError::new(
@@ -59,7 +59,7 @@ impl<'a> WorkerRepository<'a> {
                     expires_at_ms
                 ],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             Ok(IdempotencyReservation::Reserved)
         })
     }
@@ -82,7 +82,7 @@ impl<'a> WorkerRepository<'a> {
                    AND state = 'running' AND request_fingerprint = ?4",
                     params![response, scope, key, fingerprint.as_slice()],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::IdempotencyConflict,
@@ -120,7 +120,7 @@ impl<'a> WorkerRepository<'a> {
                         queue_id.to_string(),
                     ],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::IdempotencyConflict,
@@ -167,7 +167,7 @@ impl<'a> WorkerRepository<'a> {
                         version_id.to_string()
                     ],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::IdempotencyConflict,
@@ -180,7 +180,7 @@ impl<'a> WorkerRepository<'a> {
                  VALUES (?1, 'control_idempotency', ?2, ?3)",
                 params![version_id.to_string(), ref_id, now_ms],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             Ok(())
         })
     }
@@ -203,7 +203,7 @@ impl<'a> WorkerRepository<'a> {
                    AND state = 'running' AND request_fingerprint = ?4",
                     params![response, scope, key, fingerprint.as_slice()],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::IdempotencyConflict,

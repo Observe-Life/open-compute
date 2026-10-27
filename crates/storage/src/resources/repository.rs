@@ -30,7 +30,7 @@ impl<'a> ResourceRepository<'a> {
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if let Some((fingerprint, state, response, resource)) = existing {
                 if fingerprint.as_slice() != input.request_fingerprint {
                     return Err(PlatformError::new(
@@ -64,7 +64,7 @@ impl<'a> ResourceRepository<'a> {
                     [input.kind.as_str()],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if live_count >= i64::from(max_live) {
                 return Err(PlatformError::new(
                     ErrorCode::QuotaExceeded,
@@ -80,7 +80,7 @@ impl<'a> ResourceRepository<'a> {
                     params![input.kind.as_str(), input.name],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if name_conflict {
                 return Err(PlatformError::new(
                     ErrorCode::ResourceNameConflict,
@@ -103,7 +103,7 @@ impl<'a> ResourceRepository<'a> {
                     input.resource_id.to_string(),
                 ],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             tx.execute(
                 "INSERT INTO resources
                  (id, kind, name, state, availability,
@@ -119,7 +119,7 @@ impl<'a> ResourceRepository<'a> {
                     input.now_ms,
                 ],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             audit(
                 tx,
                 "resource.create",
@@ -159,7 +159,7 @@ impl<'a> ResourceRepository<'a> {
                         resource_id.to_string(),
                     ],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::IdempotencyConflict,
@@ -198,7 +198,7 @@ impl<'a> ResourceRepository<'a> {
                      WHERE id = ?2 AND (SELECT instance_id FROM instance_identity) = ?3 AND state = 'creating'",
                     params![now_ms, resource_id.to_string(), instance_id.to_string(),],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let resource_changed = tx
                 .execute(
                     "UPDATE resources SET state = 'tombstoned', updated_at_ms = ?1,
@@ -206,7 +206,7 @@ impl<'a> ResourceRepository<'a> {
                      WHERE id = ?2 AND (SELECT instance_id FROM instance_identity) = ?3 AND state = 'deleting'",
                     params![now_ms, resource_id.to_string(), instance_id.to_string(),],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let operation_changed = tx
                 .execute(
                     "UPDATE control_idempotency SET state = 'failed', response_json = ?1
@@ -220,7 +220,7 @@ impl<'a> ResourceRepository<'a> {
                         resource_id.to_string(),
                     ],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if deleting_changed != 1 || resource_changed != 1 || operation_changed != 1 {
                 return Err(resource_invariant());
             }
@@ -256,7 +256,7 @@ impl<'a> ResourceRepository<'a> {
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if let Some((fingerprint, state, response, stored_resource)) = existing {
                 if fingerprint.as_slice() != input.request_fingerprint
                     || stored_resource.as_deref() != Some(&input.resource_id.to_string())
@@ -293,7 +293,7 @@ impl<'a> ResourceRepository<'a> {
                     input.resource_id.to_string(),
                 ],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             Ok(ResourceDeleteReservation::Reserved(resource))
         })
     }
@@ -323,7 +323,7 @@ impl<'a> ResourceRepository<'a> {
                         resource_id.to_string(),
                     ],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::IdempotencyConflict,
@@ -360,13 +360,13 @@ impl<'a> ResourceRepository<'a> {
                      WHERE (SELECT instance_id FROM instance_identity) = ?1 AND (?2 IS NULL OR kind = ?2)
                      ORDER BY kind, name, id",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = statement
                 .query_map(
                     params![instance_id.to_string(), kind.map(BindingKind::as_str)],
                     map_resource,
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             collect_rows(rows)
         })
     }
@@ -394,7 +394,7 @@ impl<'a> ResourceRepository<'a> {
                     params![current.kind.as_str(), name, resource_id.to_string(),],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if conflict {
                 return Err(PlatformError::new(
                     ErrorCode::ResourceNameConflict,
@@ -405,7 +405,7 @@ impl<'a> ResourceRepository<'a> {
                 "UPDATE resources SET name = ?1, updated_at_ms = ?2 WHERE id = ?3",
                 params![name, now_ms, resource_id.to_string()],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             audit(
                 tx,
                 "resource.rename",
@@ -448,7 +448,7 @@ impl<'a> ResourceRepository<'a> {
                  WHERE id = ?4",
                 params![availability.as_str(), code, now_ms, resource_id.to_string()],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             read_resource_tx(tx, instance_id, resource_id)
         })
     }
@@ -492,7 +492,7 @@ impl<'a> ResourceRepository<'a> {
                  WHERE id = ?2",
                 params![now_ms, resource_id.to_string()],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             Ok(())
         })
     }
@@ -514,7 +514,7 @@ impl<'a> ResourceRepository<'a> {
                      WHERE id = ?2 AND state = 'deleting'",
                     params![now_ms, resource_id.to_string()],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(resource_not_ready());
             }
@@ -542,10 +542,10 @@ impl<'a> ResourceRepository<'a> {
                      FROM resources WHERE state IN ('creating', 'deleting')
                      ORDER BY state, updated_at_ms, id",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = statement
                 .query_map([], map_resource)
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             collect_rows(rows)
         })
     }
@@ -562,10 +562,10 @@ impl<'a> ResourceRepository<'a> {
                      FROM resource_referrers WHERE resource_id = ?1
                      ORDER BY referrer_kind, referrer_id",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = statement
                 .query_map([resource_id.to_string()], map_referrer)
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let mut output = collect_rows(rows)?;
             let mut statement = conn
                 .prepare(
@@ -573,10 +573,10 @@ impl<'a> ResourceRepository<'a> {
                        FROM ai_search_r2_sources WHERE bucket_resource_id = ?1
                        ORDER BY instance_resource_id",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = statement
                 .query_map([resource_id.to_string()], map_ai_search_r2_referrer)
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             output.extend(collect_rows(rows)?);
             output.sort_by(|left, right| {
                 left.referrer_kind
@@ -606,7 +606,7 @@ impl<'a> ResourceRepository<'a> {
                         expected.as_str(),
                     ],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(resource_not_ready());
             }

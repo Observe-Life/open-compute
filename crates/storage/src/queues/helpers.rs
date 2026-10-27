@@ -16,7 +16,7 @@ pub(super) fn audit(
          VALUES (?1, 'queue', ?2, ?3, X'7B7D', ?4)",
         params![action, queue_id.to_string(), request_id.to_string(), now_ms],
     )
-    .map_err(|_| db_error())?;
+    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
     Ok(())
 }
 

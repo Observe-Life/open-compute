@@ -9,15 +9,15 @@ impl<'a> WorkerRepository<'a> {
                     "SELECT worker_id, request_id
                      FROM worker_delete_intents ORDER BY created_at_ms, worker_id",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = statement
                 .query_map([], |row| {
                     Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
                 })
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let mut intents = Vec::new();
             for row in rows {
-                let (worker_id, request_id) = row.map_err(|_| db_error())?;
+                let (worker_id, request_id) = row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 intents.push(WorkerDeleteIntent {
                     worker_id: WorkerId::from_str(&worker_id).map_err(|_| invariant())?,
                     request_id: RequestId::from_str(&request_id).map_err(|_| invariant())?,
@@ -44,7 +44,7 @@ impl<'a> WorkerRepository<'a> {
                  ON CONFLICT(worker_id) DO NOTHING",
                 params![worker_id.to_string(), request_id.to_string(), now_ms],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             Ok(())
         })
     }
@@ -69,7 +69,7 @@ impl<'a> WorkerRepository<'a> {
                     map_worker,
                 )
                 .optional()
-                .map_err(|_| db_error())?
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
                 .ok_or_else(worker_not_found)?;
             if worker.deleted_at_ms.is_some() {
                 return Err(PlatformError::new(
@@ -90,7 +90,7 @@ impl<'a> WorkerRepository<'a> {
                     map_version,
                 )
                 .optional()
-                .map_err(|_| db_error())?
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
                 .ok_or_else(version_not_found)?;
             if version.state != VersionState::Ready
                 && !(allow_validating && version.state == VersionState::Validating)
@@ -155,10 +155,10 @@ impl<'a> WorkerRepository<'a> {
                  FROM worker_versions WHERE worker_id = ?1
                  ORDER BY version_number DESC",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = stmt
                 .query_map([worker_id.to_string()], map_version)
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             collect_rows(rows)
         })
     }
@@ -214,7 +214,7 @@ impl<'a> WorkerRepository<'a> {
                 map_version,
             )
             .optional()
-            .map_err(|_| db_error())?
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
             .ok_or_else(version_not_found)
         })
     }
@@ -240,7 +240,7 @@ impl<'a> WorkerRepository<'a> {
                 map_version,
             )
             .optional()
-            .map_err(|_| db_error())?
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
             .ok_or_else(version_not_found)
         })
     }
@@ -259,10 +259,10 @@ impl<'a> WorkerRepository<'a> {
                      FROM worker_deployments WHERE worker_id=?1 AND deleted_at_ms IS NULL
                      ORDER BY created_at_ms DESC,id DESC",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = statement
                 .query_map([worker_id.to_string()], map_deployment)
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             collect_rows(rows)
         })
     }
@@ -294,7 +294,7 @@ impl<'a> WorkerRepository<'a> {
                 map_deployment,
             )
             .optional()
-            .map_err(|_| db_error())?
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
             .ok_or_else(version_not_found)
         })
     }
@@ -317,7 +317,7 @@ impl<'a> WorkerRepository<'a> {
                        AND NOT EXISTS(SELECT 1 FROM workers WHERE active_deployment_id=?2)",
                     params![now_ms, deployment_id.to_string(), worker_id.to_string()],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::VersionActive,
@@ -361,7 +361,7 @@ impl<'a> WorkerRepository<'a> {
                     map_route,
                 )
                 .optional()
-                .map_err(|_| db_error())?
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
                 .ok_or_else(route_not_found)?;
             let worker = conn
                 .query_row(
@@ -374,7 +374,7 @@ impl<'a> WorkerRepository<'a> {
                     map_worker,
                 )
                 .optional()
-                .map_err(|_| db_error())?
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
                 .ok_or_else(route_not_found)?;
             let active_deployment = worker.active_deployment_id.ok_or_else(route_not_found)?;
             let deployment = conn
@@ -385,7 +385,7 @@ impl<'a> WorkerRepository<'a> {
                     map_deployment,
                 )
                 .optional()
-                .map_err(|_| db_error())?
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
                 .ok_or_else(route_not_found)?;
             let active = deployment.version_id;
             let version = conn
@@ -401,7 +401,7 @@ impl<'a> WorkerRepository<'a> {
                     map_version,
                 )
                 .optional()
-                .map_err(|_| db_error())?
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
                 .ok_or_else(route_not_found)?;
             Ok(RouteSnapshot {
                 route,
@@ -442,13 +442,13 @@ impl<'a> WorkerRepository<'a> {
                        AND r.state = 'active' AND c.state = 'active'
                      ORDER BY c.hostname_ascii, r.id",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = stmt
                 .query_map(
                     params![instance_id.to_string(), worker_id.to_string()],
                     map_route,
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             collect_rows(rows)
         })
     }
@@ -509,7 +509,7 @@ impl<'a> WorkerRepository<'a> {
                     [worker_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if force != intent {
                 return Err(PlatformError::new(
                     ErrorCode::VersionReferenced,
@@ -526,14 +526,14 @@ impl<'a> WorkerRepository<'a> {
                         "SELECT id FROM worker_versions
                          WHERE worker_id = ?1 AND deleted_at_ms IS NULL ORDER BY id",
                     )
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 let rows = statement
                     .query_map([worker_id.to_string()], |row| row.get::<_, String>(0))
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 let mut values = Vec::new();
                 for row in rows {
                     values.push(
-                        VersionId::from_str(&row.map_err(|_| db_error())?)
+                        VersionId::from_str(&row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?)
                             .map_err(|_| invariant())?,
                     );
                 }
@@ -563,7 +563,7 @@ impl<'a> WorkerRepository<'a> {
                     params![worker_id.to_string(), instance_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if inbound && !force {
                 return Err(PlatformError::new(
                     ErrorCode::ServiceTargetReferenced,
@@ -585,7 +585,7 @@ impl<'a> WorkerRepository<'a> {
                     worker_id.to_string()
                 ],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             tx.execute(
                 "UPDATE hostname_claims SET state = 'tombstoned', generation = ?1,
                         updated_at_ms = ?2, deleted_at_ms = ?2
@@ -599,7 +599,7 @@ impl<'a> WorkerRepository<'a> {
                     worker_id.to_string()
                 ],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let changed = tx
                 .execute(
                     "UPDATE workers SET active_deployment_id = NULL,
@@ -612,7 +612,7 @@ impl<'a> WorkerRepository<'a> {
                         instance_id.to_string()
                     ],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(worker_not_found());
             }
@@ -626,7 +626,7 @@ impl<'a> WorkerRepository<'a> {
                    )",
                 [worker_id.to_string()],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             tx.execute(
                 "DELETE FROM queue_referrers
                  WHERE referrer_kind = 'producer_binding'
@@ -637,7 +637,7 @@ impl<'a> WorkerRepository<'a> {
                    )",
                 [worker_id.to_string()],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             tx.execute(
                 "DELETE FROM workflow_referrers
                  WHERE referrer_kind = 'binding'
@@ -648,13 +648,13 @@ impl<'a> WorkerRepository<'a> {
                    )",
                 [worker_id.to_string()],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if force {
                 tx.execute(
                     "DELETE FROM worker_delete_intents WHERE worker_id=?1",
                     [worker_id.to_string()],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             }
             audit(
                 tx,

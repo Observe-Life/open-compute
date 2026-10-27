@@ -141,7 +141,7 @@ fn run_invariants(tx: &Transaction<'_>) -> Result<(), PlatformError> {
                 |row| row.get(0),
             )
             .optional()
-            .map_err(|_| migration_failed())?;
+            .map_err(|e| { eprintln!("[diag] migration invariant sql error: {e}"); migration_failed() })?;
         let Some(sql) = sql else {
             return Err(migration_failed());
         };
@@ -164,7 +164,7 @@ fn run_invariants(tx: &Transaction<'_>) -> Result<(), PlatformError> {
                 [index],
                 |row| row.get(0),
             )
-            .map_err(|_| migration_failed())?;
+            .map_err(|e| { eprintln!("[diag] migration invariant sql error: {e}"); migration_failed() })?;
         if !sql.contains(fragment) {
             return Err(migration_failed());
         }
@@ -206,7 +206,7 @@ fn run_invariants(tx: &Transaction<'_>) -> Result<(), PlatformError> {
             [],
             |row| row.get(0),
         )
-        .map_err(|_| migration_failed())?;
+        .map_err(|e| { eprintln!("[diag] migration invariant sql error: {e}"); migration_failed() })?;
     if invalid_origins {
         return Err(migration_failed());
     }
@@ -219,12 +219,12 @@ fn run_invariants(tx: &Transaction<'_>) -> Result<(), PlatformError> {
             [],
             |row| row.get(0),
         )
-        .map_err(|_| migration_failed())?;
+        .map_err(|e| { eprintln!("[diag] migration invariant sql error: {e}"); migration_failed() })?;
     if missing_python_artifacts {
         return Err(migration_failed());
     }
-    crate::workflows::integrity::verify_catalog(tx).map_err(|_| migration_failed())?;
-    crate::workflows::operations::verify_operations(tx).map_err(|_| migration_failed())
+    crate::workflows::integrity::verify_catalog(tx).map_err(|e| { eprintln!("[diag] migration invariant sql error: {e}"); migration_failed() })?;
+    crate::workflows::operations::verify_operations(tx).map_err(|e| { eprintln!("[diag] migration invariant sql error: {e}"); migration_failed() })
 }
 
 /// Current control migration head implemented by this binary.

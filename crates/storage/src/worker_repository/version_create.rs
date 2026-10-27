@@ -56,7 +56,7 @@ impl WorkerRepository<'_> {
                     [input.worker_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if retained_count >= i64::from(max_retained) {
                 return Err(PlatformError::new(
                     ErrorCode::QuotaExceeded,
@@ -70,7 +70,7 @@ impl WorkerRepository<'_> {
                     [input.worker_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             tx.execute(
                 "INSERT INTO worker_versions
                  (id, worker_id, version_number, content_kind, state, artifact_sha256, artifact_size,
@@ -103,7 +103,7 @@ impl WorkerRepository<'_> {
                     input.resource_limits.to_stored_json(),
                 ],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if let (Some(digest), Some(size)) = (input.artifact_sha256, input.artifact_size) {
                 crate::assets::insert_bundle_object_ref(tx, input.id, &digest, size, input.now_ms)?;
             }
@@ -122,7 +122,7 @@ impl WorkerRepository<'_> {
                      VALUES (?1, ?2, ?3)",
                     params![input.id.to_string(), name, value],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             }
             for secret in input.secrets.values() {
                 tx.execute(
@@ -139,7 +139,7 @@ impl WorkerRepository<'_> {
                         secret.envelope.ciphertext,
                     ],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             }
             for (name, value) in products.annotations.into_iter().flatten() {
                 tx.execute(

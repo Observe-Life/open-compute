@@ -164,7 +164,7 @@ impl<'a> R2ObjectRepository<'a> {
                     Ok((count, size))
                 },
             )
-            .map_err(|_| db_error())
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
             .and_then(|(count, size)| {
                 Ok(R2BucketUsage {
                     object_count: u64::try_from(count).map_err(|_| invariant())?,
@@ -212,12 +212,12 @@ impl<'a> R2ObjectRepository<'a> {
                             pending_ssec_key_md5, pending_ssec_envelope
                      FROM r2_object_mutations WHERE resource_id = ?1 ORDER BY object_key",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = statement
                 .query_map([resource_id.to_string()], |row| {
                     map_mutation(row, instance_id)
                 })
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             rows.map(|row| row.map_err(|_| invariant())).collect()
         })
     }
@@ -247,12 +247,12 @@ impl<'a> R2ObjectRepository<'a> {
                        AND (?3 IS NULL OR object_key > ?3)
                      ORDER BY object_key",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let mut rows = statement
                 .query_map(params![resource_id.to_string(), prefix, after], |row| {
                     map_object(row, instance_id)
                 })
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let mut selected: Vec<(R2ObjectListEntry, String)> = Vec::with_capacity(limit.into());
             let mut truncated = false;
             for row in &mut rows {
@@ -319,13 +319,13 @@ impl<'a> R2ObjectRepository<'a> {
                      WHERE resource_id = ?1 AND object_key >= ?2
                      ORDER BY object_key LIMIT ?3",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = statement
                 .query_map(
                     params![resource_id.to_string(), prefix, i64::from(maximum) + 1],
                     |row| map_object(row, instance_id),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let mut records = Vec::new();
             for row in rows {
                 let record = row.map_err(|_| invariant())?;
@@ -403,7 +403,7 @@ impl<'a> R2ObjectRepository<'a> {
                     size_bytes,
                 ],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             delete_mutation(
                 tx,
                 instance_id,
@@ -481,7 +481,7 @@ impl<'a> R2ObjectRepository<'a> {
                          WHERE resource_id = ?1 AND object_key = ?2",
                         params![resource_id.to_string(), object_key],
                     )
-                    .map_err(|_| db_error())?
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
                     != 1
                 {
                     return Err(invariant());
@@ -545,7 +545,7 @@ fn read_object(
         |row| map_object(row, instance_id),
     )
     .optional()
-    .map_err(|_| db_error())?
+    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
     .map_or(Ok(None), |record| {
         validate_record(&record)?;
         Ok(Some(record))
@@ -568,7 +568,7 @@ fn read_mutation(
         |row| map_mutation(row, instance_id),
     )
     .optional()
-    .map_err(|_| db_error())?
+    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
     .map_or(Ok(None), |record| {
         validate_mutation(&record)?;
         Ok(Some(record))
@@ -638,7 +638,7 @@ fn delete_mutation(
              WHERE resource_id = ?1 AND object_key = ?2 AND kind = ?3",
             params![resource_id.to_string(), object_key, kind.as_str()],
         )
-        .map_err(|_| db_error())?
+        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
         != 1
     {
         return Err(invariant());

@@ -18,7 +18,7 @@ impl<'a> WorkerRepository<'a> {
                     |row| row.get(0),
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if !state.is_some_and(|state| matches!(state.as_str(), "ready" | "rejected")) {
                 return Err(PlatformError::new(
                     ErrorCode::VersionNotReady,
@@ -30,7 +30,7 @@ impl<'a> WorkerRepository<'a> {
                  (version_id, kind, ref_id, created_at_ms) VALUES (?1, ?2, ?3, ?4)",
                 params![version_id.to_string(), kind, ref_id, now_ms],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             Ok(())
         })
     }
@@ -49,7 +49,7 @@ impl<'a> WorkerRepository<'a> {
                  WHERE version_id = ?1 AND kind = ?2 AND ref_id = ?3",
                 params![version_id.to_string(), kind, ref_id],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             Ok(())
         })
     }
@@ -66,7 +66,7 @@ impl<'a> WorkerRepository<'a> {
                      FROM version_referrers WHERE version_id = ?1
                      ORDER BY kind, ref_id",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = stmt
                 .query_map([version_id.to_string()], |row| {
                     let id: String = row.get(0)?;
@@ -78,7 +78,7 @@ impl<'a> WorkerRepository<'a> {
                         created_at_ms: row.get(3)?,
                     })
                 })
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             collect_rows(rows)
         })
     }
@@ -105,7 +105,7 @@ impl<'a> WorkerRepository<'a> {
                     [version_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if referenced {
                 return Err(PlatformError::new(
                     ErrorCode::VersionReferenced,
@@ -119,7 +119,7 @@ impl<'a> WorkerRepository<'a> {
                     |row| row.get(0),
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if state.as_deref() == Some("deleting") {
                 return Ok(());
             }
@@ -129,7 +129,7 @@ impl<'a> WorkerRepository<'a> {
                  WHERE id = ?1 AND worker_id = ?2 AND state IN ('ready', 'rejected')",
                     params![version_id.to_string(), worker_id.to_string()],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(version_not_found());
             }
@@ -157,7 +157,7 @@ impl<'a> WorkerRepository<'a> {
                     params![version_id.to_string(), worker_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if !deleting {
                 return Err(version_not_found());
             }
@@ -167,7 +167,7 @@ impl<'a> WorkerRepository<'a> {
                     [version_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if referenced {
                 return Err(PlatformError::new(
                     ErrorCode::VersionReferenced,
@@ -181,7 +181,7 @@ impl<'a> WorkerRepository<'a> {
                  WHERE id = ?2 AND worker_id = ?3 AND state = 'deleting'",
                     params![now_ms, version_id.to_string(), worker_id.to_string()],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(version_not_found());
             }
@@ -216,13 +216,13 @@ impl<'a> WorkerRepository<'a> {
         self.db.with_read(|conn| {
             let mut stmt = conn
                 .prepare("SELECT id FROM worker_versions WHERE state = 'deleting' ORDER BY id")
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = stmt
                 .query_map([], |row| {
                     let id: String = row.get(0)?;
                     VersionId::from_str(&id).map_err(|_| rusqlite::Error::InvalidQuery)
                 })
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             collect_rows(rows)
         })
     }
@@ -252,13 +252,13 @@ impl<'a> WorkerRepository<'a> {
                            )
                          ORDER BY d.id LIMIT ?1",
                     )
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 let rows = stmt
                     .query_map([i64::from(limit)], |row| row.get::<_, String>(0))
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 let mut out = Vec::new();
                 for row in rows {
-                    out.push(row.map_err(|_| db_error())?);
+                    out.push(row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?);
                 }
                 out
             };
@@ -273,7 +273,7 @@ impl<'a> WorkerRepository<'a> {
                          WHERE id = ?2 AND state = 'deleting'",
                         params![now_ms, version],
                     )
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 if changed == 1 {
                     audit(
                         tx,
@@ -313,7 +313,7 @@ impl<'a> WorkerRepository<'a> {
                          FROM control_idempotency
                          WHERE expires_at_ms <= ?1 ORDER BY expires_at_ms LIMIT ?2",
                     )
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 let rows = stmt
                     .query_map(params![now_ms, i64::from(limit)], |row| {
                         Ok((
@@ -322,10 +322,10 @@ impl<'a> WorkerRepository<'a> {
                             row.get::<_, Option<String>>(2)?,
                         ))
                     })
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 let mut out = Vec::new();
                 for row in rows {
-                    out.push(row.map_err(|_| db_error())?);
+                    out.push(row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?);
                 }
                 out
             };
@@ -337,7 +337,7 @@ impl<'a> WorkerRepository<'a> {
                          WHERE version_id = ?1 AND kind = 'control_idempotency' AND ref_id = ?2",
                         params![version, idempotency_ref_id(instance_id, &scope, &key)],
                     )
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 }
                 pruned = pruned.saturating_add(
                     u32::try_from(
@@ -347,7 +347,7 @@ impl<'a> WorkerRepository<'a> {
                                AND expires_at_ms <= ?3",
                             params![scope, key, now_ms],
                         )
-                        .map_err(|_| db_error())?,
+                        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?,
                     )
                     .unwrap_or(0),
                 );
@@ -406,7 +406,7 @@ impl<'a> WorkerRepository<'a> {
                        )
                      ORDER BY d.created_at_ms, d.id LIMIT ?4",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = stmt
                 .query_map(
                     params![
@@ -429,7 +429,7 @@ impl<'a> WorkerRepository<'a> {
                         })
                     },
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             collect_rows(rows)
         })
     }
@@ -454,20 +454,20 @@ impl<'a> WorkerRepository<'a> {
                      JOIN version_uploads u ON u.id = o.session_id
                      WHERE o.verified = 1 AND u.status IN ('open', 'finalizing')",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = stmt
                 .query_map([], |row| {
                     let digest: Vec<u8> = row.get(0)?;
                     let size: i64 = row.get(1)?;
                     Ok((digest, size))
                 })
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let mut out = Vec::new();
             for row in rows {
-                let (digest, size) = row.map_err(|_| db_error())?;
+                let (digest, size) = row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 out.push((
                     array32(&digest).map_err(|_| invariant())?,
-                    u64::try_from(size).map_err(|_| db_error())?,
+                    u64::try_from(size).map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?,
                 ));
             }
             Ok(out)
@@ -489,7 +489,7 @@ fn delete_version_products(tx: &Transaction<'_>, version: VersionId) -> Result<(
         "DELETE FROM version_python_prepared WHERE version_id=?1",
     ] {
         tx.execute(statement, [version.to_string()])
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
     }
     crate::assets::delete_version_assets(tx, version)
 }

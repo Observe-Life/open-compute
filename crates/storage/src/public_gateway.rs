@@ -27,7 +27,7 @@ impl<'a> PublicGatewayRepository<'a> {
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if let Some((domain, _)) = &current
                 && PublicGatewayConfig::validate_base_domain(domain).is_err()
             {
@@ -46,7 +46,7 @@ impl<'a> PublicGatewayRepository<'a> {
                             |row| row.get(0),
                         )
                         .optional()
-                        .map_err(|_| db_error())?;
+                        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                     if namespace_state.is_none()
                         || (state == "disabled") != (namespace_state.as_deref() == Some("disabled"))
                     {
@@ -62,7 +62,7 @@ impl<'a> PublicGatewayRepository<'a> {
                                  updated_at_ms = ?1 WHERE id = 1",
                             [now_ms],
                         )
-                        .map_err(|_| db_error())?;
+                        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                         tx.execute(
                             "UPDATE public_gateway_namespaces
                              SET state = 'provisioning', generation = generation + 1,
@@ -70,7 +70,7 @@ impl<'a> PublicGatewayRepository<'a> {
                              WHERE name = 'worker' AND domain_id = 1",
                             [now_ms],
                         )
-                        .map_err(|_| db_error())?;
+                        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                     }
                     return Ok(());
                 }
@@ -82,7 +82,7 @@ impl<'a> PublicGatewayRepository<'a> {
                             [],
                             |row| row.get(0),
                         )
-                        .map_err(|_| db_error())?;
+                        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                     if active {
                         return Err(PlatformError::new(
                             ErrorCode::RouteConflict,
@@ -90,14 +90,14 @@ impl<'a> PublicGatewayRepository<'a> {
                         ));
                     }
                     tx.execute("DELETE FROM public_gateway_namespaces", [])
-                        .map_err(|_| db_error())?;
+                        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                     tx.execute(
                         "UPDATE public_gateway_domains
                          SET base_domain_ascii = ?1, state = 'provisioning',
                              generation = generation + 1, updated_at_ms = ?2 WHERE id = 1",
                         params![base_domain, now_ms],
                     )
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 }
                 None => {
                     tx.execute(
@@ -106,7 +106,7 @@ impl<'a> PublicGatewayRepository<'a> {
                          VALUES(1, ?1, 'provisioning', 1, ?2)",
                         params![base_domain, now_ms],
                     )
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 }
             }
             tx.execute(
@@ -115,7 +115,7 @@ impl<'a> PublicGatewayRepository<'a> {
                  VALUES('worker', 1, 'provisioning', 1, NULL, ?1)",
                 [now_ms],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             Ok(())
         })
     }
@@ -130,7 +130,7 @@ impl<'a> PublicGatewayRepository<'a> {
                     [],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if active {
                 return Err(PlatformError::new(
                     ErrorCode::RouteConflict,
@@ -144,7 +144,7 @@ impl<'a> PublicGatewayRepository<'a> {
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let Some((domain, state)) = current else {
                 return Ok(());
             };
@@ -162,7 +162,7 @@ impl<'a> PublicGatewayRepository<'a> {
                     |row| row.get(0),
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if namespace_state.is_none()
                 || (state == "disabled") != (namespace_state.as_deref() == Some("disabled"))
             {
@@ -182,7 +182,7 @@ impl<'a> PublicGatewayRepository<'a> {
                      WHERE domain_id = 1",
                     [now_ms],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed == 0 {
                 return Err(PlatformError::new(
                     ErrorCode::VersionInvariantViolation,
@@ -195,7 +195,7 @@ impl<'a> PublicGatewayRepository<'a> {
                      updated_at_ms = ?1 WHERE id = 1",
                 [now_ms],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             Ok(())
         })
     }
@@ -216,7 +216,7 @@ impl<'a> PublicGatewayRepository<'a> {
                        AND state IN ('provisioning', 'degraded', 'active')",
                     params![qualified_at_ms, base_domain],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::ConfigInvalid,
@@ -232,7 +232,7 @@ impl<'a> PublicGatewayRepository<'a> {
                    AND state IN ('provisioning', 'degraded', 'active')",
                     [qualified_at_ms],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::VersionInvariantViolation,

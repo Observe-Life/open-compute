@@ -127,7 +127,7 @@ impl<'a> VersionAssetsRepository<'a> {
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let Some((state, descriptor, worker, instance)) = state else {
                 return Err(not_found());
             };
@@ -173,7 +173,7 @@ impl<'a> VersionAssetsRepository<'a> {
                     |row| row.get(0),
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             found.map(|_| ()).ok_or_else(not_found)
         })
     }
@@ -190,20 +190,20 @@ impl<'a> VersionAssetsRepository<'a> {
                      WHERE version_id = ?1 AND object_kind = 'asset_blob'
                      ORDER BY sha256",
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = stmt
                 .query_map([version_id.to_string()], |row| {
                     let digest: Vec<u8> = row.get(0)?;
                     let size: i64 = row.get(1)?;
                     Ok((digest, size))
                 })
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let mut out = Vec::new();
             for row in rows {
-                let (digest, size) = row.map_err(|_| db_error())?;
+                let (digest, size) = row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 out.push((
                     digest.try_into().map_err(|_| invariant())?,
-                    u64::try_from(size).map_err(|_| db_error())?,
+                    u64::try_from(size).map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?,
                 ));
             }
             Ok(out)
@@ -237,7 +237,7 @@ pub(crate) fn insert_version_assets(
             now_ms,
         ],
     )
-    .map_err(|_| db_error())?;
+    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
     for object in object_refs {
         tx.execute(
             "INSERT INTO version_object_refs
@@ -251,7 +251,7 @@ pub(crate) fn insert_version_assets(
                 now_ms,
             ],
         )
-        .map_err(|_| db_error())?;
+        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
     }
     Ok(())
 }
@@ -274,7 +274,7 @@ pub(crate) fn insert_bundle_object_ref(
             now_ms,
         ],
     )
-    .map_err(|_| db_error())?;
+    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
     Ok(())
 }
 
@@ -286,12 +286,12 @@ pub(crate) fn delete_version_assets(
         "DELETE FROM version_object_refs WHERE version_id = ?1",
         [version_id.to_string()],
     )
-    .map_err(|_| db_error())?;
+    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
     tx.execute(
         "DELETE FROM version_assets WHERE version_id = ?1",
         [version_id.to_string()],
     )
-    .map_err(|_| db_error())?;
+    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
     Ok(())
 }
 
@@ -337,7 +337,7 @@ pub(crate) fn read_assets_conn(
         },
     )
     .optional()
-    .map_err(|_| db_error())
+    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
 }
 
 fn not_found() -> PlatformError {

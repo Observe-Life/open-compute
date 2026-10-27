@@ -38,7 +38,7 @@ impl<'a> VersionUploadRepository<'a> {
                     [input.worker_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if open >= i64::from(max_open_per_worker) {
                 return Err(PlatformError::new(
                     ErrorCode::AssetLimitExceeded,
@@ -52,7 +52,7 @@ impl<'a> VersionUploadRepository<'a> {
                     [],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if instance_open >= i64::from(max_open_per_instance) {
                 return Err(PlatformError::new(
                     ErrorCode::AssetLimitExceeded,
@@ -87,7 +87,7 @@ impl<'a> VersionUploadRepository<'a> {
                     input.expires_at_ms,
                 ],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             for object in input.objects {
                 tx.execute(
                     "INSERT INTO version_upload_objects
@@ -100,7 +100,7 @@ impl<'a> VersionUploadRepository<'a> {
                         i64::try_from(object.size).map_err(|_| invariant())?,
                     ],
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             }
             read_tx(tx, input.id)
         })
@@ -173,12 +173,12 @@ impl<'a> VersionUploadRepository<'a> {
                  WHERE session_id = ?1 AND sha256 = ?2",
                 params![upload_id.to_string(), sha256.as_slice(), now_ms],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             tx.execute(
                 "UPDATE version_uploads SET updated_at_ms = ?2 WHERE id = ?1",
                 params![upload_id.to_string(), now_ms],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             read_tx(tx, upload_id)
         })
     }
@@ -220,7 +220,7 @@ impl<'a> VersionUploadRepository<'a> {
                             now_ms,
                         ],
                     )
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                     VersionUploadFinalizeDisposition::Reserved
                 }
                 VersionUploadStatus::Finalizing
@@ -233,7 +233,7 @@ impl<'a> VersionUploadRepository<'a> {
                          WHERE id = ?1",
                         params![upload_id.to_string(), owner_startup_id.to_string(), now_ms,],
                     )
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                     VersionUploadFinalizeDisposition::Recover
                 }
                 VersionUploadStatus::Committed
@@ -281,7 +281,7 @@ impl<'a> VersionUploadRepository<'a> {
                  WHERE id = ?1",
                 params![upload_id.to_string(), response_json, now_ms],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             read_tx(tx, upload_id)
         })
     }
@@ -310,7 +310,7 @@ impl<'a> VersionUploadRepository<'a> {
                  WHERE id = ?1",
                 params![upload_id.to_string(), code.as_str(), now_ms],
             )
-            .map_err(|_| db_error())?;
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             read_tx(tx, upload_id)
         })
     }
@@ -334,7 +334,7 @@ impl<'a> VersionUploadRepository<'a> {
                          SET status = 'aborted', updated_at_ms = ?2 WHERE id = ?1",
                         params![upload_id.to_string(), now_ms],
                     )
-                    .map_err(|_| db_error())?;
+                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
                 }
                 VersionUploadStatus::Aborted | VersionUploadStatus::Expired => {}
                 VersionUploadStatus::Finalizing | VersionUploadStatus::Committed => {

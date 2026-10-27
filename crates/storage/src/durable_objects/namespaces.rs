@@ -30,7 +30,7 @@ impl<'a> DurableObjectRepository<'a> {
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let Some((instance, do_storage_id, deleted_at_ms)) = worker else {
                 return Err(PlatformError::new(
                     ErrorCode::WorkerNotFound,
@@ -117,7 +117,7 @@ impl<'a> DurableObjectRepository<'a> {
                 |row| row.get(0),
             )
             .optional()
-            .map_err(|_| db_error())?
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
             .ok_or_else(namespace_not_found)
         })?;
         self.get_namespace(
@@ -160,7 +160,7 @@ impl<'a> DurableObjectRepository<'a> {
                 |row| row.get(0),
             )
             .optional()
-            .map_err(|_| db_error())?
+            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
             .ok_or_else(namespace_not_found)
         })
     }
@@ -215,10 +215,10 @@ impl<'a> DurableObjectRepository<'a> {
             fetch,
         )?;
         self.storage.db().with_read(|conn| {
-            let mut statement = conn.prepare(&query.text).map_err(|_| db_error())?;
+            let mut statement = conn.prepare(&query.text).map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let rows = statement
                 .query_map(params_from_iter(query.values), map_namespace_list_row)
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let mut records = collect_namespace_list_rows(rows)?;
             let next_cursor = if records.len() > usize::from(limit) {
                 records.pop();
@@ -323,7 +323,7 @@ impl<'a> DurableObjectRepository<'a> {
                     },
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let Some(DispatchAuthorityRow {
                 worker_id,
                 active_version_id,
@@ -422,7 +422,7 @@ impl<'a> DurableObjectRepository<'a> {
                     },
                 )
                 .optional()
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             let Some(AlarmDispatchAuthorityRow {
                 instance_id,
                 worker_id,
@@ -445,7 +445,7 @@ impl<'a> DurableObjectRepository<'a> {
                     [worker_id.as_str()],
                     |row| row.get(0),
                 )
-                .map_err(|_| db_error())?;
+                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
             if worker_storage_id != namespace_storage_id {
                 return Err(invariant());
             }
