@@ -10,7 +10,7 @@ impl<'a> WorkerRepository<'a> {
                 [name],
                 |row| row.get(0),
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
         })
     }
 
@@ -54,7 +54,7 @@ impl<'a> WorkerRepository<'a> {
                     [instance_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if live_count >= i64::from(max_live) {
                 return Err(PlatformError::new(
                     ErrorCode::QuotaExceeded,
@@ -74,7 +74,7 @@ impl<'a> WorkerRepository<'a> {
                         now_ms
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if inserted != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::WorkerNameConflict,
@@ -88,7 +88,7 @@ impl<'a> WorkerRepository<'a> {
                  VALUES (?1, 1, 1, NULL, 1, NULL, 1, 1, ?2)",
                 params![worker_id.to_string(), now_ms],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             tx.execute(
                 "INSERT INTO hostname_claims
                  (id, hostname_ascii, namespace, exposure, state, generation,
@@ -96,7 +96,7 @@ impl<'a> WorkerRepository<'a> {
                  VALUES (?1, ?2, 'worker', 'local', 'active', 1, ?3, ?3, NULL)",
                 params![route_id, hostname, now_ms],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             tx.execute(
                 "INSERT INTO worker_host_routes
                  (id, claim_id, worker_id, namespace, exposure,
@@ -105,7 +105,7 @@ impl<'a> WorkerRepository<'a> {
                  VALUES (?1, ?1, ?2, 'worker', 'local', '/', NULL, 'active', 1, ?3, ?3, NULL)",
                 params![route_id, worker_id.to_string(), now_ms],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             audit(
                 tx,
                 "worker.create",
@@ -159,10 +159,10 @@ impl<'a> WorkerRepository<'a> {
                    AND ownership = 'tenant'
                  ORDER BY created_at_ms, id",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = stmt
                 .query_map([instance_id.to_string()], map_worker)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect_rows(rows)
         })
     }
@@ -245,10 +245,10 @@ impl<'a> WorkerRepository<'a> {
                 direction.sql(),
             ));
             values.push(Value::Integer(i64::from(fetch)));
-            let mut stmt = conn.prepare(&sql).map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            let mut stmt = conn.prepare(&sql).map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = stmt
                 .query_map(params_from_iter(values), map_worker)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut workers = collect_rows(rows)?;
             let next_cursor = if workers.len() > usize::from(limit) {
                 workers.pop();
@@ -313,7 +313,7 @@ impl<'a> WorkerRepository<'a> {
                 map_system_owned_version,
             )
             .optional()
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
         })
     }
 
@@ -341,7 +341,7 @@ impl<'a> WorkerRepository<'a> {
                         record.updated_at_ms,
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(invariant());
             }
@@ -372,7 +372,7 @@ impl<'a> WorkerRepository<'a> {
                         now_ms
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if inserted != 1 {
                 return Err(invariant());
             }
@@ -383,14 +383,14 @@ impl<'a> WorkerRepository<'a> {
                  VALUES (?1, 1, 0, NULL, 0, NULL, 0, 0, ?2)",
                 params![worker_id.to_string(), now_ms],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             tx.execute(
                 "INSERT INTO system_owned_versions
                  (kind, worker_id, active_version_id, assets_sha256, updated_at_ms)
                  VALUES ('dashboard', ?1, NULL, zeroblob(32), ?2)",
                 params![worker_id.to_string(), now_ms],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             audit(
                 tx,
                 "worker.create.system",
@@ -433,7 +433,7 @@ impl<'a> WorkerRepository<'a> {
                 map_worker,
             )
             .optional()
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
             .ok_or_else(worker_not_found)
         })
     }
@@ -454,7 +454,7 @@ impl<'a> WorkerRepository<'a> {
                 map_observability_settings,
             )
             .optional()
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
             .ok_or_else(invariant)
         })
     }
@@ -489,7 +489,7 @@ impl<'a> WorkerRepository<'a> {
                     map_observability_settings,
                 )
                 .optional()
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
                 .ok_or_else(invariant)?;
             let generation = current.generation.checked_add(1).ok_or_else(invariant)?;
             let route_generation = worker
@@ -515,7 +515,7 @@ impl<'a> WorkerRepository<'a> {
                         i64::try_from(current.generation).map_err(|_| invariant())?,
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(invariant());
             }
@@ -529,7 +529,7 @@ impl<'a> WorkerRepository<'a> {
                     i64::try_from(worker.route_generation).map_err(|_| invariant())?,
                 ],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             audit(
                 tx,
                 "worker.observability.update",

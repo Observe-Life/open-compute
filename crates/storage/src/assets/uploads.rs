@@ -262,7 +262,7 @@ fn read_by_key(
             |row| row.get(0),
         )
         .optional()
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     id.map(|value| {
         let upload_id = VersionUploadId::from_str(&value).map_err(|_| invariant())?;
         read_tx(tx, upload_id)
@@ -287,7 +287,7 @@ fn read_tx(
             map_upload,
         )
         .optional()
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
         .ok_or_else(not_found)?;
     let mut stmt = tx
         .prepare(
@@ -295,13 +295,13 @@ fn read_tx(
              FROM version_upload_objects WHERE session_id = ?1
              ORDER BY object_kind, sha256",
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let rows = stmt
         .query_map([upload_id.to_string()], map_object)
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     record.objects = rows
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     Ok(record)
 }
 
@@ -394,7 +394,7 @@ fn expire_open(tx: &Transaction<'_>, now_ms: i64) -> Result<(), PlatformError> {
          WHERE status = 'open' AND expires_at_ms <= ?1",
         [now_ms],
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     Ok(())
 }
 
@@ -412,7 +412,7 @@ fn require_live_worker(
             |row| row.get(0),
         )
         .optional()
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     found.map(|_| ()).ok_or_else(not_found)
 }
 

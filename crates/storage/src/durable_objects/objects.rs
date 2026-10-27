@@ -28,7 +28,7 @@ impl<'a> DurableObjectRepository<'a> {
                     i64::try_from(generation).map_err(|_| invariant())?,
                 ],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             read_object(tx, namespace_id, object_id, generation)
         })
     }
@@ -48,10 +48,10 @@ impl<'a> DurableObjectRepository<'a> {
                      FROM do_objects WHERE namespace_resource_id = ?1
                      ORDER BY object_id, generation",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([namespace_id.to_string()], map_object)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect_rows(rows)
         })
     }
@@ -81,7 +81,7 @@ impl<'a> DurableObjectRepository<'a> {
                          ORDER BY object_id, generation
                          LIMIT ?4",
                     )
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 let rows = statement
                     .query_map(
                         params![
@@ -92,7 +92,7 @@ impl<'a> DurableObjectRepository<'a> {
                         ],
                         map_object,
                     )
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 collect_rows(rows)?
             } else {
                 let mut statement = conn
@@ -104,10 +104,10 @@ impl<'a> DurableObjectRepository<'a> {
                          ORDER BY object_id, generation
                          LIMIT ?2",
                     )
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 let rows = statement
                     .query_map(params![namespace_id.to_string(), fetch], map_object)
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 collect_rows(rows)?
             };
             let next_cursor = if objects.len() > usize::from(limit) {
@@ -149,7 +149,7 @@ impl<'a> DurableObjectRepository<'a> {
                 map_object,
             )
             .optional()
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
             .ok_or_else(|| {
                 PlatformError::new(ErrorCode::ResourceNotFound, "Durable Object was not found")
             })
@@ -199,7 +199,7 @@ impl<'a> DurableObjectRepository<'a> {
                     i64::try_from(current.generation).map_err(|_| invariant())?,
                 ],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             read_object(tx, namespace_id, object_id, current.generation)
         })
     }
@@ -262,7 +262,7 @@ impl<'a> DurableObjectRepository<'a> {
                     i64::try_from(generation).map_err(|_| invariant())?,
                 ],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             read_object(tx, namespace_id, object_id, generation)
         })
     }
@@ -276,7 +276,7 @@ impl<'a> DurableObjectRepository<'a> {
                 [namespace_id.to_string()],
                 |row| row.get(0),
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
         })
     }
 
@@ -289,7 +289,7 @@ impl<'a> DurableObjectRepository<'a> {
                     [],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             u64::try_from(count).map_err(|_| invariant())
         })
     }
@@ -307,10 +307,10 @@ impl<'a> DurableObjectRepository<'a> {
                      FROM do_objects WHERE state IN ('creating', 'deleting')
                      ORDER BY updated_at_ms, namespace_resource_id, object_id LIMIT ?1",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([i64::from(limit)], map_object)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect_rows(rows)
         })
     }
@@ -347,7 +347,7 @@ impl<'a> DurableObjectRepository<'a> {
                      )
                      ORDER BY namespace_resource_id, object_id, generation LIMIT ?4",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map(
                     params![
@@ -358,7 +358,7 @@ impl<'a> DurableObjectRepository<'a> {
                     ],
                     map_object,
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect_rows(rows)
         })
     }

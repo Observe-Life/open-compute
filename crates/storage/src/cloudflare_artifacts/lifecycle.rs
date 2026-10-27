@@ -53,7 +53,7 @@ impl CloudflareArtifactsRepository<'_> {
                         expected.as_str()
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(invariant());
             }

@@ -104,7 +104,7 @@ pub(crate) fn require_instance(
             [instance_id.to_string()],
             |row| row.get(0),
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     if found {
         Ok(())
     } else {
@@ -147,7 +147,7 @@ fn read_worker_tx(
         map_worker,
     )
     .optional()
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
     .ok_or_else(worker_not_found)
 }
 
@@ -157,15 +157,15 @@ fn read_vars(
 ) -> Result<BTreeMap<String, Vec<u8>>, PlatformError> {
     let mut stmt = conn
         .prepare("SELECT name, value_json FROM version_vars WHERE version_id = ?1 ORDER BY name")
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let rows = stmt
         .query_map([version_id.to_string()], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
         })
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let mut out = BTreeMap::new();
     for row in rows {
-        let (name, value) = row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        let (name, value) = row.map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
         out.insert(name, value);
     }
     Ok(out)
@@ -180,7 +180,7 @@ fn read_secrets(
             "SELECT name, revision_id, key_id, algorithm, nonce, ciphertext
          FROM version_secrets WHERE version_id = ?1 ORDER BY name",
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let rows = stmt
         .query_map([version_id.to_string()], |row| {
             let name: String = row.get(0)?;
@@ -199,10 +199,10 @@ fn read_secrets(
                 },
             ))
         })
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let mut out = BTreeMap::new();
     for row in rows {
-        let (name, value) = row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        let (name, value) = row.map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
         out.insert(name, value);
     }
     Ok(out)
@@ -350,15 +350,15 @@ fn read_version_annotations(
             "SELECT name, value FROM version_annotations
              WHERE version_id = ?1 ORDER BY name",
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let rows = statement
         .query_map([version_id.to_string()], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let mut annotations = BTreeMap::new();
     for row in rows {
-        let (name, value) = row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        let (name, value) = row.map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
         if annotations.insert(name, value).is_some() {
             return Err(invariant());
         }
@@ -406,7 +406,7 @@ fn collect_rows<T>(
 ) -> Result<Vec<T>, PlatformError> {
     let mut out = Vec::new();
     for row in rows {
-        out.push(row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?);
+        out.push(row.map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?);
     }
     Ok(out)
 }
@@ -433,7 +433,7 @@ fn audit(
             now_ms
         ],
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     Ok(())
 }
 

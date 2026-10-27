@@ -112,10 +112,10 @@ impl<'a> R2BucketRepository<'a> {
         self.db.with_read(|conn| {
             let mut statement = conn
                 .prepare(&format!("{SELECT_BUCKETS} ORDER BY r.name, r.id"))
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([instance_id.to_string()], map_bucket)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut buckets = Vec::new();
             for row in rows {
                 buckets.push(row.map_err(|_| invariant())?);
@@ -167,10 +167,10 @@ impl<'a> R2BucketRepository<'a> {
             fetch,
         )?;
         self.db.with_read(|conn| {
-            let mut statement = conn.prepare(&query.text).map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            let mut statement = conn.prepare(&query.text).map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map(params_from_iter(query.values), map_bucket)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut buckets = collect_bucket_rows(rows)?;
             let next_cursor = if buckets.len() > usize::from(limit) {
                 buckets.pop();
@@ -201,10 +201,10 @@ impl<'a> R2BucketRepository<'a> {
                 .prepare(&format!(
                     "{SELECT_ALL_BUCKETS} ORDER BY (SELECT instance_id FROM instance_identity), r.name, r.id"
                 ))
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([], map_bucket)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut buckets = Vec::new();
             for row in rows {
                 buckets.push(row.map_err(|_| invariant())?);
@@ -229,7 +229,7 @@ impl<'a> R2BucketRepository<'a> {
                             WHERE id = r2_buckets.resource_id) = 'deleting'",
                     params![now_ms, resource_id.to_string()],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::ResourceNotReady,
@@ -248,7 +248,7 @@ impl<'a> R2BucketRepository<'a> {
                     "UPDATE r2_buckets SET last_probe_at_ms = ?1 WHERE resource_id = ?2",
                     params![now_ms, resource_id.to_string()],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(not_found());
             }
@@ -285,7 +285,7 @@ fn read_bucket(
         map_bucket,
     )
     .optional()
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
     .ok_or_else(not_found)
 }
 

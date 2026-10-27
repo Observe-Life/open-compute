@@ -38,7 +38,7 @@ impl<'a> QueueRepository<'a> {
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )
                 .optional()
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if let Some((state, stored, response)) = existing {
                 if stored.as_slice() != request_fingerprint {
                     return Err(PlatformError::new(
@@ -60,7 +60,7 @@ impl<'a> QueueRepository<'a> {
                     [],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if live_count >= i64::from(max_live) {
                 return Err(PlatformError::new(
                     ErrorCode::QuotaExceeded,
@@ -82,7 +82,7 @@ impl<'a> QueueRepository<'a> {
                     queue_id.to_string(),
                 ],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let queue = insert_creating_tx(tx, instance_id, queue_id, name, config, now_ms)?;
             Ok(QueueCreateReservation::Reserved(queue))
         })
@@ -167,10 +167,10 @@ impl<'a> QueueRepository<'a> {
             fetch,
         )?;
         self.db.with_read(|conn| {
-            let mut statement = conn.prepare(&query.text).map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            let mut statement = conn.prepare(&query.text).map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map(params_from_iter(query.values), map_queue)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut queues = collect(rows)?;
             let next_cursor = if queues.len() > usize::from(limit) {
                 queues.pop();
@@ -210,10 +210,10 @@ impl<'a> QueueRepository<'a> {
                      FROM queues WHERE (SELECT instance_id FROM instance_identity) = ?1 AND state != 'tombstoned'
                      ORDER BY created_at_ms, id",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([instance_id.to_string()], map_queue)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect(rows)
         })
     }
@@ -239,10 +239,10 @@ impl<'a> QueueRepository<'a> {
                        AND (state IN ('creating', 'deleting') OR availability != 'healthy')
                      ORDER BY updated_at_ms, id LIMIT ?1",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([i64::from(limit)], map_queue)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect(rows)
         })
     }
@@ -263,7 +263,7 @@ impl<'a> QueueRepository<'a> {
                        AND availability = 'healthy'",
                     params![paused, now_ms, queue_id.to_string(), instance_id.to_string()],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(not_ready());
             }
@@ -289,13 +289,13 @@ impl<'a> QueueRepository<'a> {
                        AND d.version_id = b.version_id AND w.deleted_at_ms IS NULL
                      ORDER BY w.name",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map(
                     params![queue_id.to_string(), instance_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect(rows)
         })
     }
@@ -328,7 +328,7 @@ impl<'a> QueueRepository<'a> {
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
                 )
                 .optional()
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let Some((state, fingerprint, stored_queue, stored_intent)) = stored else {
                 tx.execute(
                     "INSERT INTO control_idempotency
@@ -347,7 +347,7 @@ impl<'a> QueueRepository<'a> {
                         queue_id.to_string(),
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 return Ok(IdempotencyReservation::Reserved);
             };
             let queue = queue_id.to_string();
@@ -393,7 +393,7 @@ impl<'a> QueueRepository<'a> {
                         mutation.queue_id.to_string(),
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::IdempotencyConflict,
@@ -432,7 +432,7 @@ impl<'a> QueueRepository<'a> {
                        AND (scope LIKE 'queue.patch:%' OR scope LIKE 'queue.delete:%')
                      ORDER BY created_at_ms, scope, idempotency_key LIMIT ?1",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([i64::from(limit)], |row| {
                     Ok((
@@ -443,10 +443,10 @@ impl<'a> QueueRepository<'a> {
                         row.get::<_, Vec<u8>>(4)?,
                     ))
                 })
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut output = Vec::new();
             for row in rows {
-                let (scope, key, fingerprint, queue, intent_json) = row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                let (scope, key, fingerprint, queue, intent_json) = row.map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 let request_fingerprint: [u8; 32] =
                     fingerprint.try_into().map_err(|_| invariant())?;
                 output.push(RunningQueueMutation {
@@ -477,7 +477,7 @@ impl<'a> QueueRepository<'a> {
                      WHERE scope = 'queue.create' AND queue_id = ?2 AND state = 'running'",
                     params![response, queue.id.to_string()],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed > 1 {
                 return Err(invariant());
             }
@@ -501,7 +501,7 @@ impl<'a> QueueRepository<'a> {
                        AND lifecycle_generation = 1 AND config_generation = 1",
                     params![now_ms, queue_id.to_string(), instance_id.to_string()],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(not_ready());
             }
@@ -580,7 +580,7 @@ impl<'a> QueueRepository<'a> {
                         i64::try_from(expected_generation).map_err(|_| invariant())?,
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::QueueConfigPending,
@@ -616,7 +616,7 @@ impl<'a> QueueRepository<'a> {
                         i64::try_from(config_generation).map_err(|_| invariant())?,
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::QueueConfigPending,
@@ -643,7 +643,7 @@ impl<'a> QueueRepository<'a> {
                     [queue_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if referenced {
                 return Err(PlatformError::new(
                     ErrorCode::QueueReferenced,
@@ -694,7 +694,7 @@ impl<'a> QueueRepository<'a> {
                      WHERE id = ?2 AND (SELECT instance_id FROM instance_identity) = ?3 AND state = 'deleting'",
                     params![now_ms, queue_id.to_string(), instance_id.to_string()],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(not_ready());
             }

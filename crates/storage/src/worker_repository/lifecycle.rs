@@ -12,14 +12,14 @@ impl<'a> WorkerRepository<'a> {
                     [],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let quarantined: i64 = connection
                 .query_row(
                     "SELECT COUNT(*) FROM deployment_runtime_assessments WHERE state='quarantined'",
                     [],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let invalid_active: i64 = connection
                 .query_row(
                     "SELECT COUNT(*) FROM workers w
@@ -30,7 +30,7 @@ impl<'a> WorkerRepository<'a> {
                     [],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let last_quarantine_reason = connection
                 .query_row(
                     "SELECT reason FROM deployment_runtime_assessments
@@ -39,7 +39,7 @@ impl<'a> WorkerRepository<'a> {
                     |row| row.get(0),
                 )
                 .optional()
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             Ok(DeploymentRuntimeAssessmentSummary {
                 dispatchable: u64::try_from(dispatchable).map_err(|_| invariant())?,
                 quarantined: u64::try_from(quarantined).map_err(|_| invariant())?,
@@ -86,7 +86,7 @@ impl<'a> WorkerRepository<'a> {
                      WHERE id = ?2 AND worker_id = ?3 AND state = 'validating'",
                     params![now_ms, version_id.to_string(), worker_id.to_string()],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::VersionNotReady,
@@ -144,7 +144,7 @@ impl<'a> WorkerRepository<'a> {
                         expected.as_str()
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::VersionNotReady,
@@ -274,7 +274,7 @@ impl<'a> WorkerRepository<'a> {
                     |row| row.get(0),
                 )
                 .optional()
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let Some(state) = state else {
                 return Err(version_not_found());
             };
@@ -292,7 +292,7 @@ impl<'a> WorkerRepository<'a> {
                     params![worker_id.to_string(), target.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if quarantined {
                 return Err(PlatformError::new(
                     ErrorCode::VersionNotReady,
@@ -321,7 +321,7 @@ impl<'a> WorkerRepository<'a> {
                     now_ms,
                 ],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             tx.execute(
                 "INSERT INTO deployment_runtime_assessments
                  (deployment_id, state, startup_id, reason, updated_at_ms)
@@ -332,7 +332,7 @@ impl<'a> WorkerRepository<'a> {
                     now_ms,
                 ],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let changed = tx
                 .execute(
                     "UPDATE workers SET active_deployment_id = ?1,
@@ -347,7 +347,7 @@ impl<'a> WorkerRepository<'a> {
                         i64::try_from(current.route_generation).map_err(|_| invariant())?
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(PlatformError::new(
                     ErrorCode::IdempotencyConflict,
@@ -364,7 +364,7 @@ impl<'a> WorkerRepository<'a> {
                         map_observability_settings,
                     )
                     .optional()
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
                     .ok_or_else(invariant)?;
                 let generation = current.generation.checked_add(1).ok_or_else(invariant)?;
                 let updated = tx
@@ -388,7 +388,7 @@ impl<'a> WorkerRepository<'a> {
                             i64::try_from(current.generation).map_err(|_| invariant())?,
                         ],
                     )
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 if updated != 1 {
                     return Err(invariant());
                 }
@@ -448,7 +448,7 @@ impl<'a> WorkerRepository<'a> {
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )
                 .optional()
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let Some((worker_id_text, account_id_text)) = current else {
                 return Ok(false);
             };
@@ -464,7 +464,7 @@ impl<'a> WorkerRepository<'a> {
                     |row| row.get::<_, String>(0),
                 )
                 .optional()
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
                 .map(|value| value.parse().map_err(|_| invariant()))
                 .transpose()?;
             let updated = tx
@@ -474,7 +474,7 @@ impl<'a> WorkerRepository<'a> {
                      WHERE deployment_id=?1 AND state='dispatchable'",
                     params![deployment_id.to_string(), reason, now_ms],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if updated != 1 {
                 return Ok(false);
             }
@@ -491,7 +491,7 @@ impl<'a> WorkerRepository<'a> {
                         deployment_id.to_string(),
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(invariant());
             }

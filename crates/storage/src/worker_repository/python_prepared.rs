@@ -51,7 +51,7 @@ impl WorkerRepository<'_> {
                     params![artifact.version_id.to_string(), worker.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if !owned {
                 return Err(invariant());
             }

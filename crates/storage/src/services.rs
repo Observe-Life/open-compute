@@ -190,7 +190,7 @@ impl<'a> ServiceRepository<'a> {
                     },
                 )
                 .optional()
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let Some((
                 service,
                 instance,
@@ -288,7 +288,7 @@ impl<'a> ServiceRepository<'a> {
                        AND d.state IN ('staging', 'validating', 'ready')
                      ORDER BY caller.id, d.id, s.binding_name LIMIT ?3",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map(
                     params![
@@ -308,7 +308,7 @@ impl<'a> ServiceRepository<'a> {
                         })
                     },
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect(rows)
         })
     }
@@ -356,10 +356,10 @@ pub(crate) fn read_version_services_conn(
                     descriptor_sha256, created_at_ms
              FROM version_services WHERE version_id = ?1 ORDER BY binding_name",
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let rows = statement
         .query_map([version_id.to_string()], map_service)
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     collect(rows)
 }
 

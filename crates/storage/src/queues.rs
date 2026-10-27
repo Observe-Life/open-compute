@@ -117,7 +117,7 @@ pub(crate) fn read_version_bindings_conn(
              JOIN workers w ON w.id = d.worker_id
              WHERE b.version_id = ?1 ORDER BY b.name, b.id",
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let rows = statement
         .query_map([version_id.to_string()], |row| {
             let binding = map_binding_offset(row, 0)?;
@@ -139,7 +139,7 @@ pub(crate) fn read_version_bindings_conn(
             }
             Ok(binding)
         })
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     collect(rows)
 }
 
@@ -158,7 +158,7 @@ fn read_queue_conn(
         map_queue,
     )
     .optional()
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
 }
 
 fn read_queue_tx(

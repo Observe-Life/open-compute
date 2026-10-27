@@ -10,7 +10,7 @@ pub(super) fn collect_namespace_list_rows(
 ) -> Result<Vec<DurableObjectNamespaceRecord>, PlatformError> {
     let mut records = Vec::new();
     for row in rows {
-        records.push(row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?);
+        records.push(row.map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?);
     }
     Ok(records)
 }
@@ -68,7 +68,7 @@ pub(super) fn read_namespace_product(
         },
     )
     .optional()
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
     .ok_or_else(namespace_not_found)
 }
 
@@ -103,7 +103,7 @@ pub(super) fn register_object_tx(
             params![namespace_id.to_string(), object_id.to_string()],
             |row| row.get(0),
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let generation = prior.checked_add(1).ok_or_else(invariant)?;
     tx.execute(
         "INSERT INTO do_objects
@@ -117,7 +117,7 @@ pub(super) fn register_object_tx(
             now_ms
         ],
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     read_object(
         tx,
         namespace_id,
@@ -140,7 +140,7 @@ pub(super) fn read_live_object(
         map_object,
     )
     .optional()
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
 }
 
 pub(super) fn read_object(
@@ -162,7 +162,7 @@ pub(super) fn read_object(
         map_object,
     )
     .optional()
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
     .ok_or_else(invariant)
 }
 
@@ -215,7 +215,7 @@ pub(super) fn collect_rows<T>(
 ) -> Result<Vec<T>, PlatformError> {
     let mut out = Vec::new();
     for row in rows {
-        out.push(row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?);
+        out.push(row.map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?);
     }
     Ok(out)
 }

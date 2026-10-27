@@ -31,7 +31,7 @@ impl WorkerRepository<'_> {
                     params![worker_id.to_string(), instance_id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if !live {
                 return Err(worker_not_found());
             }
@@ -49,7 +49,7 @@ impl WorkerRepository<'_> {
                     map_route,
                 )
                 .optional()
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let hostname = if let Some(name) = public_name {
                 let base: String = tx
                     .query_row(
@@ -61,7 +61,7 @@ impl WorkerRepository<'_> {
                         |row| row.get(0),
                     )
                     .optional()
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
                     .ok_or_else(|| {
                         PlatformError::new(
                             ErrorCode::RouteConflict,
@@ -88,7 +88,7 @@ impl WorkerRepository<'_> {
                         [&hostname],
                         |row| row.get(0),
                     )
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 if occupied {
                     return Err(PlatformError::new(
                         ErrorCode::RouteConflict,
@@ -108,7 +108,7 @@ impl WorkerRepository<'_> {
                          WHERE id = ?2 AND state = 'active'",
                         params![now_ms, old.id],
                     )
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 if changed != 1 {
                     return Err(invariant());
                 }
@@ -121,7 +121,7 @@ impl WorkerRepository<'_> {
                        AND state = 'active'",
                         params![now_ms, old.id],
                     )
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 if changed != 1 {
                     return Err(invariant());
                 }
@@ -135,7 +135,7 @@ impl WorkerRepository<'_> {
                      VALUES(?1, ?2, 'worker', 'public', 'active', 1, ?3, ?3, NULL)",
                     params![id, hostname, now_ms],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 tx.execute(
                     "INSERT INTO worker_host_routes
                      (id, claim_id, worker_id, namespace, exposure,
@@ -145,7 +145,7 @@ impl WorkerRepository<'_> {
                             'active', 1, ?3, ?3, NULL)",
                     params![id, worker_id.to_string(), now_ms],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 Some(RouteRecord {
                     id,
                     instance_id,

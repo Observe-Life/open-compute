@@ -74,7 +74,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                     now_ms,
                 ],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             read_namespace(tx, instance_id, id)
         })
     }
@@ -91,10 +91,10 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                             max_tokens_per_repository, created_at_ms, updated_at_ms
                      FROM artifact_namespaces WHERE (SELECT instance_id FROM instance_identity) = ?1 ORDER BY name, id",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([instance_id.to_string()], map_namespace)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect(rows)
         })
     }
@@ -146,7 +146,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                     [namespace.id.to_string()],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if count >= i64::from(namespace.max_repositories) {
                 return Err(PlatformError::new(
                     ErrorCode::QuotaExceeded,
@@ -211,7 +211,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                      WHERE id = ?1 AND state = 'importing'",
                     params![id.to_string(), default_branch, now_ms],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(invariant());
             }
@@ -238,7 +238,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                 map_repository,
             )
             .optional()
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
             .ok_or_else(|| not_found("Artifact repository was not found"))
         })
     }
@@ -257,10 +257,10 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                      FROM artifact_repositories WHERE namespace_id = ?1 AND state = 'ready'
                      ORDER BY created_at_ms DESC, id DESC",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([namespace_id.to_string()], map_repository)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect(rows)
         })
     }
@@ -276,10 +276,10 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                      FROM artifact_repositories WHERE state != 'tombstoned'
                      ORDER BY id",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([], map_repository)
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect(rows)
         })
     }
@@ -297,7 +297,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                             updated_at_ms = ?2 WHERE id = ?1 AND state IN ('ready', 'failed')",
                     params![id.to_string(), now_ms],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(not_found("Artifact repository was not found or unavailable"));
             }
@@ -317,7 +317,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                  WHERE repository_id = ?1",
                 params![id.to_string(), now_ms],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let changed = tx
                 .execute(
                     "UPDATE artifact_repositories
@@ -325,7 +325,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                      WHERE id = ?1 AND state = 'deleting'",
                     params![id.to_string(), now_ms],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(invariant());
             }
@@ -347,7 +347,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                      WHERE id = ?1 AND state = 'deleting'",
                     params![id.to_string(), now_ms],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(invariant());
             }
@@ -364,7 +364,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                      WHERE id = ?1 AND state = 'ready' AND read_only = 0",
                     params![id.to_string(), now_ms],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(invariant());
             }
@@ -392,7 +392,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                     params![repository.id.to_string(), request.now_ms],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if count >= i64::from(request.max_tokens) {
                 return Err(PlatformError::new(ErrorCode::QuotaExceeded, "Artifact token quota was exceeded"));
             }
@@ -402,7 +402,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL)",
                 params![request.id.to_string(), repository.id.to_string(), request.digest.as_slice(), request.scope.as_str(), request.expires_at_ms, request.now_ms],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             read_token(tx, request.id)
         })
     }
@@ -416,8 +416,8 @@ impl<'a> CloudflareArtifactsRepository<'a> {
             let mut statement = conn.prepare(
                 "SELECT id, repository_id, scope, expires_at_ms, created_at_ms, revoked_at_ms
                  FROM artifact_repo_tokens WHERE repository_id = ?1 ORDER BY created_at_ms DESC, id DESC",
-            ).map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
-            let rows = statement.query_map([repository_id.to_string()], map_token).map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            ).map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
+            let rows = statement.query_map([repository_id.to_string()], map_token).map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect(rows)
         })
     }
@@ -435,7 +435,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                  WHERE id = ?1 AND repository_id = ?2 AND revoked_at_ms IS NULL",
                 params![id.to_string(), repository_id.to_string(), now_ms],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
         })?;
         if changed != 1 {
             return Err(not_found("Artifact token was not found"));
@@ -459,7 +459,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                    )",
                 params![id.to_string(), namespace_id.to_string(), now_ms],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
         })?;
         if changed != 1 {
             return Err(not_found("Artifact token was not found"));
@@ -483,12 +483,12 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                      WHERE t.repository_id = ?1 AND t.revoked_at_ms IS NULL
                        AND t.expires_at_ms > ?2 AND r.state = 'ready'",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut rows = statement
                 .query(params![repository_id.to_string(), now_ms])
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut matched = None;
-            while let Some(row) = rows.next().map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })? {
+            while let Some(row) = rows.next().map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })? {
                 let id = row
                     .get::<_, String>(0)
                     .map_err(|_| invariant())?
@@ -530,8 +530,8 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                  JOIN worker_versions v ON v.id = b.version_id
                  JOIN workers w ON w.id = v.worker_id
                  WHERE b.version_id = ?1 AND EXISTS(SELECT 1 FROM instance_identity) ORDER BY b.name, b.id",
-            ).map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
-            let rows = statement.query_map([version_id.to_string()], map_version_binding).map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            ).map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
+            let rows = statement.query_map([version_id.to_string()], map_version_binding).map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             collect(rows)
         })
     }
@@ -560,7 +560,7 @@ impl<'a> CloudflareArtifactsRepository<'a> {
                     map_version_binding,
                 )
                 .optional()
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
                 .ok_or_else(|| not_found("Artifact binding was not found"))?;
             if binding.descriptor_sha256 != *descriptor_sha256
                 || binding.namespace_generation != 1
@@ -625,7 +625,7 @@ fn read_namespace(
         map_namespace,
     )
     .optional()
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
     .ok_or_else(|| not_found("Artifact namespace was not found"))
 }
 
@@ -642,7 +642,7 @@ fn read_namespace_by_name(
         map_namespace,
     )
     .optional()
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
 }
 
 fn read_repository(
@@ -657,7 +657,7 @@ fn read_repository(
         map_repository,
     )
     .optional()
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
     .ok_or_else(|| not_found("Artifact repository was not found"))
 }
 
@@ -671,7 +671,7 @@ fn read_token(
         [id.to_string()],
         map_token,
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
 }
 
 fn map_namespace(row: &rusqlite::Row<'_>) -> rusqlite::Result<ArtifactNamespaceRecord> {

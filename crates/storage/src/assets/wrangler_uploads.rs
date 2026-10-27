@@ -89,7 +89,7 @@ impl<'a> AssetUploadRepository<'a> {
                  WHERE status='open' AND expires_at_ms<=?1",
                 [now_ms],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             require_instance(tx, instance_id)?;
             let open: i64 = tx
                 .query_row(
@@ -98,7 +98,7 @@ impl<'a> AssetUploadRepository<'a> {
                     [script_name],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if open >= i64::from(max_open_per_worker) {
                 return Err(PlatformError::new(
                     ErrorCode::AssetLimitExceeded,
@@ -111,7 +111,7 @@ impl<'a> AssetUploadRepository<'a> {
                  VALUES (?1,?2,'open',?3,?4,?3)",
                 params![id, script_name, now_ms, expires_at_ms],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             for entry in entries {
                 tx.execute(
                     "INSERT INTO asset_upload_entries
@@ -127,7 +127,7 @@ impl<'a> AssetUploadRepository<'a> {
                         Option::<i64>::None,
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             }
             refresh_complete(tx, id, now_ms)?;
             read(tx, id, now_ms)
@@ -149,7 +149,7 @@ impl<'a> AssetUploadRepository<'a> {
                  WHERE id=?2 AND status='open' AND expires_at_ms<=?1",
                 params![now_ms, id],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let session = read(tx, id, now_ms)?;
             if session.script_name != script_name {
                 return Err(not_found());
@@ -218,7 +218,7 @@ impl<'a> AssetUploadRepository<'a> {
                         size,
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed == 0 {
                 return Err(PlatformError::new(
                     ErrorCode::AssetUploadConflict,
@@ -262,7 +262,7 @@ impl<'a> AssetUploadRepository<'a> {
                  WHERE id=?3 AND status='complete' AND reservation_id IS NULL",
                 params![reservation_id, now_ms, id],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             read(tx, id, now_ms)
         })
     }
@@ -285,7 +285,7 @@ impl<'a> AssetUploadRepository<'a> {
                      WHERE id=?2 AND reservation_id=?3 AND status='reserved'",
                     params![now_ms, id, reservation_id],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
                 == 0
                 && session.reservation_id.as_deref() != Some(reservation_id)
             {
@@ -309,7 +309,7 @@ impl<'a> AssetUploadRepository<'a> {
                  WHERE id=?2 AND reservation_id=?3 AND status='reserved'",
                 params![now_ms, id, reservation_id],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed == 1 {
                 return Ok(());
             }
@@ -321,7 +321,7 @@ impl<'a> AssetUploadRepository<'a> {
                     params![id, reservation_id],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             replay.then_some(()).ok_or_else(not_found)
         })
     }
@@ -375,7 +375,7 @@ fn refresh_complete(
          )",
         params![now_ms, id],
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     Ok(())
 }
 
@@ -400,7 +400,7 @@ fn read(
             },
         )
         .optional()
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let (instance, script_name, status, reservation_id, expires_at_ms) =
         row.ok_or_else(not_found)?;
     if expires_at_ms <= now_ms {
@@ -411,7 +411,7 @@ fn read(
             "SELECT path,wrangler_hash,size,content_type,artifact_sha256
              FROM asset_upload_entries WHERE session_id=?1 ORDER BY path",
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let rows = statement
         .query_map([id], |row| {
             let size: i64 = row.get(2)?;
@@ -428,13 +428,13 @@ fn read(
                     .transpose()?,
             })
         })
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let entries = rows
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     Ok(AssetUploadSession {
         id: id.to_owned(),
-        instance_id: instance.parse().map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?,
+        instance_id: instance.parse().map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?,
         script_name,
         complete: matches!(status.as_str(), "complete" | "reserved" | "consumed"),
         reservation_id,
@@ -620,7 +620,7 @@ mod tests {
                         [],
                     )
                     .map(|_| ())
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
                 })
                 .is_err()
         );
@@ -633,7 +633,7 @@ mod tests {
                         [],
                     )
                     .map(|_| ())
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
                 })
                 .is_err()
         );

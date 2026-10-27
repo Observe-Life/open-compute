@@ -42,7 +42,7 @@ impl<'a> R2MultipartRepository<'a> {
                         resource_id.to_string()
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(multipart_invalid());
             }
@@ -67,7 +67,7 @@ impl<'a> R2MultipartRepository<'a> {
                        AND state = 'initiating' AND provider_upload_id IS NOT NULL",
                     params![now_ms, upload_id, resource_id.to_string()],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(multipart_invalid());
             }
@@ -92,7 +92,7 @@ impl<'a> R2MultipartRepository<'a> {
                        AND state = 'initiating' AND provider_upload_id IS NULL",
                     params![now_ms, upload_id, resource_id.to_string()],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(multipart_invalid());
             }
@@ -115,7 +115,7 @@ impl<'a> R2MultipartRepository<'a> {
                        AND provider_upload_id IS NULL",
                     params![now_ms, resource_id.to_string()],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             u64::try_from(changed).map_err(|_| invariant())
         })
     }
@@ -140,7 +140,7 @@ impl<'a> R2MultipartRepository<'a> {
                  WHERE upload_id = ?1 AND resource_id = ?2 AND state = 'initiating'",
                 params![upload_id, resource_id.to_string()],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             Ok(Some(record))
         })
     }
@@ -182,7 +182,7 @@ impl<'a> R2MultipartRepository<'a> {
                         object_key,
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(multipart_invalid());
             }
@@ -216,7 +216,7 @@ impl<'a> R2MultipartRepository<'a> {
                         object_key,
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(multipart_invalid());
             }
@@ -243,7 +243,7 @@ impl<'a> R2MultipartRepository<'a> {
                        AND completed_metadata IS NULL",
                     params![now_ms, upload_id, resource_id.to_string(), object_key,],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(multipart_invalid());
             }
@@ -321,7 +321,7 @@ impl<'a> R2MultipartRepository<'a> {
                     now_ms
                 ],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             Ok(())
         })
     }
@@ -334,7 +334,7 @@ impl<'a> R2MultipartRepository<'a> {
                     "SELECT part_number, etag, size FROM r2_multipart_parts
                      WHERE upload_id = ?1 ORDER BY part_number",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([upload_id], |row| {
                     Ok(R2MultipartPartRecord {
@@ -345,7 +345,7 @@ impl<'a> R2MultipartRepository<'a> {
                             .map_err(|_| rusqlite::Error::InvalidQuery)?,
                     })
                 })
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut parts = Vec::new();
             for row in rows {
                 parts.push(row.map_err(|_| invariant())?);
@@ -371,12 +371,12 @@ impl<'a> R2MultipartRepository<'a> {
                      FROM r2_multipart_uploads
                      WHERE resource_id = ?1 ORDER BY created_at_ms, upload_id",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map([resource_id.to_string()], |row| {
                     map_upload(row, instance_id)
                 })
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut uploads = Vec::new();
             for row in rows {
                 uploads.push(row.map_err(|_| invariant())?);
@@ -408,7 +408,7 @@ impl<'a> R2MultipartRepository<'a> {
                         resource_id.to_string(),
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(multipart_invalid());
             }
@@ -432,7 +432,7 @@ impl<'a> R2MultipartRepository<'a> {
                        AND state = 'create_unknown' AND provider_upload_id IS NULL",
                     params![upload_id, resource_id.to_string()],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(multipart_invalid());
             }
@@ -461,7 +461,7 @@ impl<'a> R2MultipartRepository<'a> {
                        AND provider_upload_id IS NOT NULL",
                     params![now_ms, upload_id, resource_id.to_string(),],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(multipart_invalid());
             }
@@ -536,7 +536,7 @@ impl<'a> R2MultipartRepository<'a> {
                         from.as_str(),
                     ],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if changed != 1 {
                 return Err(multipart_invalid());
             }

@@ -149,7 +149,7 @@ pub(crate) fn read_resource_conn(
         map_resource,
     )
     .optional()
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
     .ok_or_else(resource_not_found)
 }
 
@@ -168,7 +168,7 @@ fn has_referrers(tx: &Transaction<'_>, resource_id: ResourceId) -> Result<bool, 
         [resource_id.to_string()],
         |row| row.get(0),
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })
 }
 
 fn map_ai_search_r2_referrer(row: &rusqlite::Row<'_>) -> rusqlite::Result<ResourceReferrer> {
@@ -240,7 +240,7 @@ fn require_instance(tx: &Transaction<'_>, instance_id: InstanceId) -> Result<(),
             [instance_id.to_string()],
             |row| row.get(0),
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     if !exists {
         return Err(resource_not_found());
     }
@@ -294,7 +294,7 @@ fn audit(
             now_ms,
         ],
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     Ok(())
 }
 

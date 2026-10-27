@@ -102,7 +102,7 @@ impl DurableObjectRepository<'_> {
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )
                 .optional()
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let Some((worker_account, do_storage_id, deleted_at_ms)) = worker else {
                 return Err(namespace_not_found());
             };
@@ -127,7 +127,7 @@ impl DurableObjectRepository<'_> {
                     params![worker_id.to_string(), plan.new_tag],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if reused_tag {
                 return Err(migration_conflict());
             }
@@ -142,7 +142,7 @@ impl DurableObjectRepository<'_> {
                     [],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut missing = 0_i64;
             for class_name in &plan.new_sqlite_classes {
                 let exists: bool = tx
@@ -152,7 +152,7 @@ impl DurableObjectRepository<'_> {
                         params![worker_id.to_string(), class_name],
                         |row| row.get(0),
                     )
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 if !exists {
                     missing = missing.checked_add(1).ok_or_else(invariant)?;
                 }
@@ -186,7 +186,7 @@ impl DurableObjectRepository<'_> {
                         params![worker_id.to_string(), class_name],
                         |row| row.get(0),
                     )
-                    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 if !exists {
                     return Err(namespace_not_found());
                 }
@@ -221,7 +221,7 @@ impl DurableObjectRepository<'_> {
                 |row| row.get(0),
             )
             .optional()
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
             .ok_or_else(namespace_not_found)
         })?;
         self.get_namespace(
@@ -273,7 +273,7 @@ impl DurableObjectRepository<'_> {
                     params![worker_id.to_string(), plan.new_tag],
                     |row| row.get(0),
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             if reused_tag {
                 return Err(migration_conflict());
             }
@@ -296,7 +296,7 @@ impl DurableObjectRepository<'_> {
                        AND lifecycle_state = 'pending' AND migration_tag = ?2
                      ORDER BY resource_id",
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let rows = statement
                 .query_map(params![worker_id.to_string(), new_tag], |row| {
                     Ok((
@@ -305,10 +305,10 @@ impl DurableObjectRepository<'_> {
                         row.get::<_, Option<String>>(2)?,
                     ))
                 })
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
             let mut pending = Vec::new();
             for row in rows {
-                pending.push(row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?);
+                pending.push(row.map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?);
             }
             drop(statement);
             for (resource_id, class_name, previous) in pending {
@@ -320,21 +320,21 @@ impl DurableObjectRepository<'_> {
                              WHERE resource_id = ?1",
                             [resource_id],
                         )
-                        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                     }
                     Some(previous) => {
                         tx.execute(
                             "UPDATE resources SET updated_at_ms = ?2 WHERE id = ?1",
                             params![resource_id, now_ms],
                         )
-                        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                         tx.execute(
                             "UPDATE do_namespaces SET class_name = ?2,
                                lifecycle_state = 'active', migration_tag = NULL,
                                previous_class_name = NULL WHERE resource_id = ?1",
                             params![resource_id, previous],
                         )
-                        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                     }
                     None => {
                         tx.execute(
@@ -342,13 +342,13 @@ impl DurableObjectRepository<'_> {
                              WHERE id = ?1",
                             params![resource_id, now_ms],
                         )
-                        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                         tx.execute(
                             "UPDATE resources SET state = 'tombstoned', updated_at_ms = ?2,
                                deleted_at_ms = ?2 WHERE id = ?1",
                             params![resource_id, now_ms],
                         )
-                        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                     }
                 }
             }
@@ -387,7 +387,7 @@ pub(crate) fn publish_worker_migration_tx(
             params![worker_id.to_string(), plan.new_tag],
             |row| row.get(0),
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     if reused_tag {
         return Err(migration_conflict());
     }
@@ -398,15 +398,15 @@ pub(crate) fn publish_worker_migration_tx(
              WHERE owner_worker_id = ?1 AND lifecycle_state = 'pending'
                AND migration_tag = ?2 ORDER BY class_name",
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let pending_rows = pending_statement
         .query_map(params![worker_id.to_string(), plan.new_tag], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
         })
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let mut pending = Vec::new();
     for row in pending_rows {
-        pending.push(row.map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?);
+        pending.push(row.map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?);
     }
     drop(pending_statement);
     for (class_name, previous) in &pending {
@@ -433,7 +433,7 @@ pub(crate) fn publish_worker_migration_tx(
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
         let valid = lifecycle.is_some_and(|(state, tag)| {
             (state == "pending" && tag.as_deref() == Some(plan.new_tag.as_str()))
                 || (plan.declarative && state == "active" && tag.is_none())
@@ -452,7 +452,7 @@ pub(crate) fn publish_worker_migration_tx(
                 params![worker_id.to_string(), rename.to, plan.new_tag, rename.from],
                 |row| row.get(0),
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
         if !exact {
             return Err(invariant());
         }
@@ -466,7 +466,7 @@ pub(crate) fn publish_worker_migration_tx(
                 params![worker_id.to_string(), class_name],
                 |row| row.get(0),
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
         if !exact {
             return Err(invariant());
         }
@@ -480,7 +480,7 @@ pub(crate) fn publish_worker_migration_tx(
                AND migration_tag = ?2",
         params![worker_id.to_string(), plan.new_tag],
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     for class_name in &plan.deleted_classes {
         let changed = tx
             .execute(
@@ -489,7 +489,7 @@ pub(crate) fn publish_worker_migration_tx(
                    AND lifecycle_state = 'active'",
                 params![worker_id.to_string(), class_name],
             )
-            .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+            .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
         if changed != 1 {
             return Err(invariant());
         }
@@ -507,7 +507,7 @@ pub(crate) fn publish_worker_migration_tx(
             now_ms,
         ],
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     tx.execute(
         "INSERT INTO worker_do_migration_heads (worker_id, current_tag, updated_at_ms)
          VALUES (?1, ?2, ?3)
@@ -516,7 +516,7 @@ pub(crate) fn publish_worker_migration_tx(
            updated_at_ms = excluded.updated_at_ms",
         params![worker_id.to_string(), plan.new_tag, now_ms],
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     Ok(())
 }
 
@@ -535,7 +535,7 @@ fn read_migration_head(
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     row.map(|(tag, old_tag, digest, version)| {
         Ok(DurableObjectMigrationHead {
             tag,
@@ -621,7 +621,7 @@ fn prepare_new_namespace(
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .optional()
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     if let Some((resource_id, lifecycle, tag)) = existing {
         return match (lifecycle.as_str(), tag.as_deref()) {
             ("active", None) if allow_active => Ok(()),
@@ -633,7 +633,7 @@ fn prepare_new_namespace(
                      WHERE resource_id = ?1",
                     params![resource_id, migration_tag],
                 )
-                .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+                .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
                 Ok(())
             }
             _ => Err(PlatformError::new(
@@ -658,7 +658,7 @@ fn prepare_new_namespace(
             now_ms,
         ],
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     tx.execute(
         "INSERT INTO do_namespaces
          (resource_id, owner_worker_id, class_name, do_storage_id,
@@ -676,13 +676,13 @@ fn prepare_new_namespace(
             now_ms,
         ],
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let changed = tx
         .execute(
             "UPDATE resources SET state = 'ready', updated_at_ms = ?2 WHERE id = ?1",
             params![resource_id.to_string(), now_ms],
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     if changed != 1 {
         return Err(invariant());
     }
@@ -705,7 +705,7 @@ fn prepare_namespace_rename(
             params![worker_id.to_string(), rename.to, migration_tag, rename.from],
             |row| row.get(0),
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     if replay {
         return Ok(());
     }
@@ -717,7 +717,7 @@ fn prepare_namespace_rename(
             |row| row.get(0),
         )
         .optional()
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?
         .ok_or_else(namespace_not_found)?;
     let target_exists: bool = tx
         .query_row(
@@ -726,7 +726,7 @@ fn prepare_namespace_rename(
             params![worker_id.to_string(), rename.to],
             |row| row.get(0),
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     if target_exists {
         return Err(PlatformError::new(
             ErrorCode::ResourceNameConflict,
@@ -737,14 +737,14 @@ fn prepare_namespace_rename(
         "UPDATE resources SET updated_at_ms = ?2 WHERE id = ?1",
         params![resource_id, now_ms],
     )
-    .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+    .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     let changed = tx
         .execute(
             "UPDATE do_namespaces SET class_name = ?2, lifecycle_state = 'pending',
                migration_tag = ?3, previous_class_name = ?4 WHERE resource_id = ?1",
             params![resource_id, rename.to, migration_tag, rename.from],
         )
-        .map_err(|e| { eprintln!("[diag] storage sql error: {e}"); db_error() })?;
+        .map_err(|e| { eprintln!("[diag] {} sql error: {e}", file!()); db_error() })?;
     if changed != 1 {
         return Err(invariant());
     }
